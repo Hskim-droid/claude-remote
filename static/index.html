@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Claude Code Remote</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
+    <!-- XTerm.js -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
+
+    <style>
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #27272a;
+            --bg-tertiary: #3f3f46;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #f4f4f5;
+            --bg-secondary: #e4e4e7;
+            --bg-tertiary: #d4d4d8;
+            --text-primary: #18181b;
+            --text-secondary: #52525b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
+        }
+
+        .app {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            height: 100dvh;
+        }
+
+        /* Header */
+        header {
+            padding: 12px 16px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--bg-tertiary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo h1 {
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .status-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--danger);
+            transition: background 0.3s;
+        }
+
+        .status-dot.ok {
+            background: var(--success);
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        /* Buttons */
+        button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: #52525b;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-icon {
+            padding: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+        }
+
+        .btn-icon:hover {
+            color: var(--text-primary);
+        }
+
+        /* Main content */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Sessions panel */
+        .sessions-panel {
+            padding: 12px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--bg-tertiary);
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+
+        .sessions-scroll {
+            display: flex;
+            gap: 8px;
+            min-width: max-content;
+        }
+
+        .session-chip {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .session-chip:hover {
+            background: #52525b;
+        }
+
+        .session-chip.active {
+            background: var(--accent);
+            color: white;
+        }
+
+        .session-chip .close {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0,0,0,0.2);
+            font-size: 12px;
+        }
+
+        .session-chip .close:hover {
+            background: rgba(0,0,0,0.4);
+        }
+
+        /* Terminal container */
+        .terminal-container {
+            flex: 1;
+            position: relative;
+            background: #1a1a2e;
+        }
+
+        #terminal {
+            width: 100%;
+            height: 100%;
+        }
+
+        .terminal-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: var(--bg-primary);
+            gap: 20px;
+        }
+
+        .terminal-overlay.hidden {
+            display: none;
+        }
+
+        .terminal-overlay svg {
+            width: 64px;
+            height: 64px;
+            opacity: 0.5;
+        }
+
+        .terminal-overlay p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        /* Loading */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--bg-tertiary);
+            border-top-color: var(--accent);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+        }
+
+        .modal h2 {
+            margin-bottom: 20px;
+            font-size: 1.2rem;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--bg-tertiary);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.95rem;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-actions button {
+            flex: 1;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: calc(20px + var(--safe-bottom));
+            left: 50%;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 20px;
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+            max-width: 90%;
+            text-align: center;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            background: var(--danger);
+            color: white;
+        }
+
+        .toast.success {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Connection status */
+        .connection-status {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            z-index: 10;
+        }
+
+        .connection-status.connected {
+            background: var(--success);
+            color: white;
+        }
+
+        .connection-status.connecting {
+            background: var(--warning);
+            color: black;
+        }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            header {
+                padding: 10px 12px;
+            }
+
+            .logo h1 {
+                font-size: 1rem;
+            }
+
+            button {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+            }
+
+            .sessions-panel {
+                padding: 8px 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <header>
+            <div class="logo">
+                <h1>Claude Remote</h1>
+                <div class="status-dots">
+                    <span class="status-dot" id="status-tmux" title="tmux"></span>
+                    <span class="status-dot" id="status-ttyd" title="ttyd"></span>
+                    <span class="status-dot" id="status-claude" title="claude"></span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button class="btn-primary" onclick="showCreateModal()">+ New</button>
+                <button class="btn-icon" onclick="toggleTheme()" title="Toggle theme">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"></circle>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <div class="sessions-panel">
+            <div class="sessions-scroll" id="sessions-list">
+                <!-- Sessions will be rendered here -->
+            </div>
+        </div>
+
+        <main>
+            <div class="terminal-container">
+                <div id="terminal"></div>
+                <div class="terminal-overlay" id="terminal-overlay">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p id="overlay-text">Select or create a session</p>
+                </div>
+                <div class="connection-status hidden" id="connection-status">Disconnected</div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Create Modal -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal">
+            <h2>New Session</h2>
+            <div class="form-group">
+                <label>Session Name (optional)</label>
+                <input type="text" id="session-name" placeholder="Auto-generated">
+            </div>
+            <div class="form-group">
+                <label>Working Directory</label>
+                <input type="text" id="working-dir" value="/mnt/c/Users" placeholder="/mnt/c/...">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="hideCreateModal()">Cancel</button>
+                <button class="btn-primary" onclick="createSession()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // State
+        let currentSession = null;
+        let term = null;
+        let ws = null;
+        let fitAddon = null;
+
+        const TTYD_PORT = 7681;
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            initTerminal();
+            checkStatus();
+            refreshSessions();
+            setInterval(refreshSessions, 5000);
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                if (fitAddon && term) {
+                    fitAddon.fit();
+                }
+            });
+        });
+
+        // Initialize XTerm.js
+        function initTerminal() {
+            term = new Terminal({
+                cursorBlink: true,
+                fontSize: 14,
+                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                theme: {
+                    background: '#1a1a2e',
+                    foreground: '#e4e4e7',
+                    cursor: '#6366f1',
+                    selection: 'rgba(99, 102, 241, 0.3)',
+                },
+            });
+
+            fitAddon = new FitAddon.FitAddon();
+            const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+
+            term.loadAddon(fitAddon);
+            term.loadAddon(webLinksAddon);
+
+            term.open(document.getElementById('terminal'));
+            fitAddon.fit();
+        }
+
+        // Connect to ttyd WebSocket
+        function connectTerminal(sessionName) {
+            if (ws) {
+                ws.close();
+            }
+
+            const statusEl = document.getElementById('connection-status');
+            statusEl.classList.remove('hidden', 'connected');
+            statusEl.classList.add('connecting');
+            statusEl.textContent = 'Connecting...';
+
+            term.clear();
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${location.hostname}:${TTYD_PORT}/ws`;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = () => {
+                statusEl.classList.remove('connecting');
+                statusEl.classList.add('connected');
+                statusEl.textContent = 'Connected';
+                document.getElementById('terminal-overlay').classList.add('hidden');
+
+                // Send initial size
+                const dims = fitAddon.proposeDimensions();
+                if (dims) {
+                    // ttyd protocol: resize command
+                    ws.send('1' + JSON.stringify({columns: dims.cols, rows: dims.rows}));
+                }
+
+                fitAddon.fit();
+            };
+
+            ws.onmessage = (event) => {
+                if (typeof event.data === 'string') {
+                    // ttyd sends data with prefix '0' for output
+                    if (event.data[0] === '0') {
+                        term.write(event.data.slice(1));
+                    }
+                } else {
+                    // Binary data
+                    const data = new Uint8Array(event.data);
+                    if (data[0] === 48) { // '0' in ASCII
+                        term.write(new TextDecoder().decode(data.slice(1)));
+                    }
+                }
+            };
+
+            ws.onclose = () => {
+                statusEl.classList.remove('connected', 'connecting');
+                statusEl.textContent = 'Disconnected';
+
+                // Auto reconnect after 3 seconds
+                if (currentSession) {
+                    setTimeout(() => {
+                        if (currentSession === sessionName) {
+                            showToast('Reconnecting...', 'info');
+                            openSession(sessionName);
+                        }
+                    }, 3000);
+                }
+            };
+
+            ws.onerror = () => {
+                statusEl.classList.remove('connected', 'connecting');
+                statusEl.textContent = 'Error';
+            };
+
+            // Send terminal input to ttyd
+            term.onData((data) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    // ttyd protocol: input command prefix '0'
+                    ws.send('0' + data);
+                }
+            });
+
+            // Handle resize
+            term.onResize(({cols, rows}) => {
+                if (ws && ws.readyState === WebSocket.OPEN) {
+                    ws.send('1' + JSON.stringify({columns: cols, rows: rows}));
+                }
+            });
+        }
+
+        // Toast
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        // Check status
+        async function checkStatus() {
+            try {
+                const res = await fetch('/api/status');
+                const data = await res.json();
+
+                document.getElementById('status-tmux').classList.toggle('ok', data.tmux);
+                document.getElementById('status-ttyd').classList.toggle('ok', data.ttyd);
+                document.getElementById('status-claude').classList.toggle('ok', data.claude);
+            } catch (e) {
+                console.error('Status check failed:', e);
+            }
+        }
+
+        // Refresh sessions
+        async function refreshSessions() {
+            try {
+                const res = await fetch('/api/sessions');
+                const data = await res.json();
+                renderSessions(data.sessions);
+            } catch (e) {
+                console.error('Session refresh failed:', e);
+            }
+        }
+
+        // Render sessions
+        function renderSessions(sessions) {
+            const container = document.getElementById('sessions-list');
+
+            if (sessions.length === 0) {
+                container.innerHTML = '<span style="color: var(--text-secondary); font-size: 0.85rem;">No sessions</span>';
+                return;
+            }
+
+            container.innerHTML = sessions.map(s => `
+                <div class="session-chip ${s.name === currentSession ? 'active' : ''}" onclick="openSession('${escapeHtml(s.name)}')">
+                    <span>${escapeHtml(s.name)}</span>
+                    <span class="close" onclick="event.stopPropagation(); deleteSession('${escapeHtml(s.name)}')">&times;</span>
+                </div>
+            `).join('');
+        }
+
+        // Escape HTML
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Modal
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.add('active');
+            document.getElementById('session-name').focus();
+        }
+
+        function hideCreateModal() {
+            document.getElementById('create-modal').classList.remove('active');
+            document.getElementById('session-name').value = '';
+        }
+
+        // Create session
+        async function createSession() {
+            const name = document.getElementById('session-name').value.trim();
+            const workingDir = document.getElementById('working-dir').value.trim();
+
+            try {
+                const res = await fetch('/api/sessions', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, workingDir }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast(`Session "${data.session.name}" created`, 'success');
+                    hideCreateModal();
+                    refreshSessions();
+                    openSession(data.session.name);
+                } else {
+                    showToast(data.error || 'Failed to create session', 'error');
+                }
+            } catch (e) {
+                showToast('Server connection failed', 'error');
+            }
+        }
+
+        // Open session
+        async function openSession(name) {
+            const overlay = document.getElementById('terminal-overlay');
+            const overlayText = document.getElementById('overlay-text');
+
+            overlay.classList.remove('hidden');
+            overlayText.innerHTML = '<span class="loading"></span> Connecting...';
+
+            try {
+                const res = await fetch('/api/ttyd/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ session: name }),
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    currentSession = name;
+                    refreshSessions();
+
+                    // Wait a bit for ttyd to be ready
+                    setTimeout(() => {
+                        connectTerminal(name);
+                    }, 300);
+                } else {
+                    overlayText.textContent = data.error || 'Failed to start terminal';
+                    showToast(data.error || 'Failed to start terminal', 'error');
+                }
+            } catch (e) {
+                overlayText.textContent = 'Server connection failed';
+                showToast('Server connection failed', 'error');
+            }
+        }
+
+        // Delete session
+        async function deleteSession(name) {
+            if (!confirm(`Delete session "${name}"?`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/sessions/${encodeURIComponent(name)}`, {
+                    method: 'DELETE',
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast('Session deleted', 'success');
+                    if (currentSession === name) {
+                        currentSession = null;
+                        if (ws) ws.close();
+                        document.getElementById('terminal-overlay').classList.remove('hidden');
+                        document.getElementById('overlay-text').textContent = 'Select or create a session';
+                    }
+                    refreshSessions();
+                } else {
+                    showToast(data.error || 'Failed to delete session', 'error');
+                }
+            } catch (e) {
+                showToast('Server connection failed', 'error');
+            }
+        }
+
+        // Theme toggle
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            html.setAttribute('data-theme', current === 'light' ? 'dark' : 'light');
+            localStorage.setItem('theme', html.getAttribute('data-theme'));
+        }
+
+        // Load saved theme
+        (function() {
+            const saved = localStorage.getItem('theme');
+            if (saved) {
+                document.documentElement.setAttribute('data-theme', saved);
+            }
+        })();
+
+        // Enter key to create
+        document.getElementById('session-name').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') createSession();
+        });
+    </script>
+</body>
+</html>

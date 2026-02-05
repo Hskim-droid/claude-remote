@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#1a1a2e"/>
+  <rect x="60" y="120" width="392" height="272" rx="20" fill="#27272a" stroke="#6366f1" stroke-width="8"/>
+  <text x="100" y="220" font-family="monospace" font-size="48" fill="#22c55e">$</text>
+  <text x="150" y="220" font-family="monospace" font-size="48" fill="#e4e4e7">claude</text>
+  <rect x="100" y="260" width="20" height="40" fill="#6366f1">
+    <animate attributeName="opacity" values="1;0;1" dur="1s" repeatCount="indefinite"/>
+  </rect>
+</svg>

@@ -1,0 +1,28 @@
+{
+  "name": "claude-remote",
+  "version": "1.0.0",
+  "description": "WSL2 + tmux + ttyd based Claude Code remote web terminal",
+  "main": "server/main.js",
+  "scripts": {
+    "start": "node server/main.js",
+    "dev": "node --watch server/main.js"
+  },
+  "keywords": [
+    "claude",
+    "terminal",
+    "wsl",
+    "tmux",
+    "ttyd",
+    "remote"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.16.0",
+    "dotenv": "^16.3.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
