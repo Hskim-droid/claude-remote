@@ -1,65 +1,65 @@
 #!/bin/bash
-# Claude Code Remote - WSL 의존성 설치 스크립트
-# wsl -d Ubuntu -- bash /mnt/d/tools/claude-remote/install-wsl-deps.sh
+# Claude Code Remote - WSL dependency installation script
+# Run from WSL: bash install-wsl-deps.sh
 
 set -e
 
 echo "========================================"
-echo "Claude Code Remote - WSL 의존성 설치"
+echo "Claude Code Remote - WSL Dependencies"
 echo "========================================"
 
-# 패키지 업데이트
+# Update package list
 echo ""
-echo "[1/4] 패키지 목록 업데이트..."
+echo "[1/4] Updating package list..."
 sudo apt update
 
-# tmux 설치
+# Install tmux
 echo ""
-echo "[2/4] tmux 설치..."
+echo "[2/4] Installing tmux..."
 if command -v tmux &> /dev/null; then
-    echo "tmux 이미 설치됨: $(tmux -V)"
+    echo "tmux already installed: $(tmux -V)"
 else
     sudo apt install -y tmux
-    echo "tmux 설치 완료"
+    echo "tmux installed"
 fi
 
-# ttyd 설치
+# Install ttyd
 echo ""
-echo "[3/4] ttyd 설치..."
+echo "[3/4] Installing ttyd..."
 if command -v ttyd &> /dev/null; then
-    echo "ttyd 이미 설치됨: $(ttyd --version)"
+    echo "ttyd already installed: $(ttyd --version)"
 else
     sudo apt install -y ttyd
-    echo "ttyd 설치 완료"
+    echo "ttyd installed"
 fi
 
-# Claude Code 설치 (Node.js 필요)
+# Install Claude Code (requires Node.js)
 echo ""
-echo "[4/4] Claude Code 설치..."
+echo "[4/4] Installing Claude Code..."
 if command -v claude &> /dev/null; then
-    echo "Claude Code 이미 설치됨"
+    echo "Claude Code already installed"
 else
-    # Node.js 확인
+    # Check Node.js
     if ! command -v node &> /dev/null; then
-        echo "Node.js 설치 중..."
+        echo "Installing Node.js..."
         curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
         sudo apt install -y nodejs
     fi
 
-    echo "Claude Code 설치 중..."
+    echo "Installing Claude Code..."
     sudo npm install -g @anthropic-ai/claude-code
-    echo "Claude Code 설치 완료"
+    echo "Claude Code installed"
 fi
 
 echo ""
 echo "========================================"
-echo "설치 완료!"
+echo "Installation complete!"
 echo "========================================"
 echo ""
-echo "설치된 패키지:"
-echo "  - tmux: $(tmux -V 2>/dev/null || echo '미설치')"
-echo "  - ttyd: $(ttyd --version 2>/dev/null || echo '미설치')"
-echo "  - node: $(node --version 2>/dev/null || echo '미설치')"
-echo "  - claude: $(which claude 2>/dev/null || echo '미설치')"
+echo "Installed packages:"
+echo "  - tmux: $(tmux -V 2>/dev/null || echo 'not installed')"
+echo "  - ttyd: $(ttyd --version 2>/dev/null || echo 'not installed')"
+echo "  - node: $(node --version 2>/dev/null || echo 'not installed')"
+echo "  - claude: $(which claude 2>/dev/null || echo 'not installed')"
 echo ""
-echo "이제 Windows에서 start.ps1을 실행하세요."
+echo "Now run start.ps1 on Windows."
