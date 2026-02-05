@@ -5,22 +5,41 @@
   "main": "server/main.js",
   "scripts": {
     "start": "node server/main.js",
-    "dev": "node --watch server/main.js"
+    "dev": "node --watch server/main.js",
+    "lint": "eslint server/",
+    "lint:fix": "eslint server/ --fix",
+    "format": "prettier --write ."
   },
   "keywords": [
     "claude",
+    "claude-code",
     "terminal",
     "wsl",
+    "wsl2",
     "tmux",
     "ttyd",
-    "remote"
+    "remote",
+    "web-terminal",
+    "xterm"
   ],
-  "author": "",
+  "author": "Hskim-droid",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Hskim-droid/claude-remote.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Hskim-droid/claude-remote/issues"
+  },
+  "homepage": "https://github.com/Hskim-droid/claude-remote#readme",
   "dependencies": {
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "ws": "^8.16.0",
-    "dotenv": "^16.3.1"
+    "ws": "^8.16.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.0"
   },
   "engines": {
     "node": ">=18.0.0"
