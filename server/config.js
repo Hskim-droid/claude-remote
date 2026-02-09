@@ -2,14 +2,41 @@
  * Configuration management
  */
 
+const os = require('os');
 require('dotenv').config();
 
+const platform = os.platform(); // 'win32', 'linux', 'darwin'
+
+// Platform-specific defaults
+const platformDefaults = {
+  win32: {
+    allowedPaths: '/mnt/c/,/mnt/d/,/home/',
+    blockedPaths: '/etc,/root,/sys,/proc,/dev',
+    defaultPath: '/mnt/c/Users',
+  },
+  linux: {
+    allowedPaths: '/home/,/tmp/,/opt/,/var/',
+    blockedPaths: '/etc,/root,/sys,/proc,/dev',
+    defaultPath: '/home/',
+  },
+  darwin: {
+    allowedPaths: '/Users/,/tmp/,/opt/,/var/',
+    blockedPaths: '/etc,/root,/sys,/proc,/dev,/System',
+    defaultPath: '/Users/',
+  },
+};
+
+const defaults = platformDefaults[platform] || platformDefaults.linux;
+
 const config = {
+  // Platform
+  PLATFORM: platform,
+
   // Server
   HOST: process.env.HOST || '0.0.0.0',
   PORT: parseInt(process.env.PORT) || 8080,
 
-  // WSL
+  // WSL (Windows only)
   WSL_DISTRO: process.env.WSL_DISTRO || 'Ubuntu',
 
   // ttyd
@@ -22,8 +49,9 @@ const config = {
   RATE_LIMIT_WINDOW: parseInt(process.env.RATE_LIMIT_WINDOW) || 60,
 
   // Paths
-  ALLOWED_PATHS: (process.env.ALLOWED_PATHS || '/mnt/c/,/mnt/d/,/home/').split(',').map(p => p.trim()),
-  BLOCKED_PATHS: (process.env.BLOCKED_PATHS || '/etc,/root,/sys,/proc,/dev').split(',').map(p => p.trim()),
+  ALLOWED_PATHS: (process.env.ALLOWED_PATHS || defaults.allowedPaths).split(',').map(p => p.trim()),
+  BLOCKED_PATHS: (process.env.BLOCKED_PATHS || defaults.blockedPaths).split(',').map(p => p.trim()),
+  DEFAULT_PATH: process.env.DEFAULT_PATH || defaults.defaultPath,
 };
 
 module.exports = config;

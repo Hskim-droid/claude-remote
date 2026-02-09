@@ -1,6 +1,6 @@
 /**
  * Claude Code Remote - Main Entry Point
- * WSL2 + tmux + ttyd based web terminal
+ * Cross-platform web terminal (Windows/WSL2, Linux, macOS)
  */
 
 const express = require('express');
@@ -31,6 +31,11 @@ app.use('/api', apiRouter);
 const staticPath = path.join(__dirname, '..', 'static');
 app.use(express.static(staticPath));
 
+// Terminal page route
+app.get('/terminal', (req, res) => {
+  res.sendFile(path.join(staticPath, 'terminal.html'));
+});
+
 // SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(staticPath, 'index.html'));
@@ -42,11 +47,19 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Internal server error' });
 });
 
+// Platform label
+const platformLabel = {
+  win32: 'Windows (WSL2)',
+  linux: 'Linux',
+  darwin: 'macOS',
+}[config.PLATFORM] || config.PLATFORM;
+
 // Start server
 app.listen(config.PORT, config.HOST, () => {
   console.log('='.repeat(50));
   console.log('Claude Code Remote - Server');
   console.log('='.repeat(50));
+  console.log(`Platform: ${platformLabel}`);
   console.log(`UI:       http://localhost:${config.PORT}`);
   console.log(`Terminal: http://localhost:${config.TTYD_PORT} (after connecting)`);
   console.log('='.repeat(50));

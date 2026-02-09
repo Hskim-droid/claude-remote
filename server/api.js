@@ -5,7 +5,7 @@
 const express = require('express');
 const config = require('./config');
 const { sanitizeSessionName, sanitizePath, RateLimiter } = require('./security');
-const wsl = require('./wsl');
+const executor = require('./executor');
 
 const router = express.Router();
 const rateLimiter = new RateLimiter(config.RATE_LIMIT_MAX, config.RATE_LIMIT_WINDOW);
@@ -29,7 +29,7 @@ router.use((req, res, next) => {
  */
 router.get('/status', async (req, res) => {
   try {
-    const status = await wsl.getStatus();
+    const status = await executor.getStatus();
     res.json(status);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -41,7 +41,7 @@ router.get('/status', async (req, res) => {
  */
 router.get('/sessions', async (req, res) => {
   try {
-    const sessions = await wsl.listSessions();
+    const sessions = await executor.listSessions();
     res.json({ sessions });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -56,7 +56,13 @@ router.post('/sessions', async (req, res) => {
 
   // Auto-generate name if not provided
   if (!name) {
-    name = `claude-${Date.now()}`;
+    const sessions = await executor.listSessions();
+    const existing = sessions.map(s => s.name);
+    let num = 1;
+    while (existing.includes(`session-${num}`)) {
+      num++;
+    }
+    name = `session-${num}`;
   }
 
   // Validate session name
@@ -66,19 +72,19 @@ router.post('/sessions', async (req, res) => {
   }
 
   // Validate working directory
-  workingDir = workingDir || '/mnt/c/Users';
+  workingDir = workingDir || config.DEFAULT_PATH;
   const safePath = sanitizePath(workingDir);
   if (!safePath) {
     return res.status(400).json({ error: 'Invalid or blocked path' });
   }
 
   // Check if session already exists
-  if (await wsl.sessionExists(safeName)) {
+  if (await executor.sessionExists(safeName)) {
     return res.status(409).json({ error: 'Session already exists' });
   }
 
   // Create session
-  const result = await wsl.createSession(safeName, safePath);
+  const result = await executor.createSession(safeName, safePath);
   if (!result.success) {
     return res.status(500).json({ error: result.error });
   }
@@ -105,12 +111,12 @@ router.delete('/sessions/:name', async (req, res) => {
   }
 
   // Check if session exists
-  if (!(await wsl.sessionExists(safeName))) {
+  if (!(await executor.sessionExists(safeName))) {
     return res.status(404).json({ error: 'Session not found' });
   }
 
   // Kill session
-  const result = await wsl.killSession(safeName);
+  const result = await executor.killSession(safeName);
   if (!result.success) {
     return res.status(500).json({ error: result.error });
   }
@@ -134,12 +140,12 @@ router.post('/ttyd/start', async (req, res) => {
   }
 
   // Check if session exists
-  if (!(await wsl.sessionExists(safeName))) {
+  if (!(await executor.sessionExists(safeName))) {
     return res.status(404).json({ error: 'Session not found' });
   }
 
   // Start ttyd
-  const result = await wsl.startTtyd(safeName);
+  const result = await executor.startTtyd(safeName);
   if (!result.success) {
     return res.status(500).json({ error: result.error });
   }

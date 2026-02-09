@@ -1,7 +1,7 @@
 {
   "name": "claude-remote",
-  "version": "1.0.0",
-  "description": "WSL2 + tmux + ttyd based Claude Code remote web terminal",
+  "version": "0.0.2",
+  "description": "Cross-platform (Windows/Linux/macOS) web-based remote terminal for Claude Code using tmux + ttyd",
   "main": "server/main.js",
   "scripts": {
     "start": "node server/main.js",
@@ -16,11 +16,14 @@
     "terminal",
     "wsl",
     "wsl2",
+    "linux",
+    "macos",
     "tmux",
     "ttyd",
     "remote",
     "web-terminal",
-    "xterm"
+    "xterm",
+    "cross-platform"
   ],
   "author": "Hskim-droid",
   "license": "MIT",
