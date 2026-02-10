@@ -3,323 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0f0f17">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0f0f1a">
     <title>Terminal</title>
-
-    <!-- XTerm.js -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.min.js"></script>
-
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         html, body {
-            width: 100%;
             height: 100%;
+            width: 100%;
+            background: #0f0f1a;
             overflow: hidden;
-            background: #0f0f17;
         }
-
         #terminal {
             width: 100%;
             height: 100%;
-            padding-top: env(safe-area-inset-top, 0px);
-            padding-bottom: env(safe-area-inset-bottom, 0px);
-            padding-left: env(safe-area-inset-left, 0px);
-            padding-right: env(safe-area-inset-right, 0px);
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
         }
-
         .xterm {
             height: 100%;
+            padding: 4px;
         }
-
-        /* Reconnect overlay */
-        .reconnect-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(15, 15, 23, 0.9);
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
-            gap: 16px;
-            z-index: 10;
+        .xterm-viewport::-webkit-scrollbar {
+            width: 6px;
         }
-
-        .reconnect-overlay.active {
-            display: flex;
+        .xterm-viewport::-webkit-scrollbar-track {
+            background: #0f0f1a;
         }
-
-        .reconnect-overlay p {
-            color: #a1a1aa;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 0.9rem;
+        .xterm-viewport::-webkit-scrollbar-thumb {
+            background: #3f3f5a;
+            border-radius: 3px;
         }
-
-        .reconnect-overlay button {
-            padding: 12px 32px;
-            background: #6366f1;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            cursor: pointer;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-
-        .reconnect-overlay button:hover {
-            background: #4f46e5;
-        }
-
-        /* Connecting spinner */
-        .connecting {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 12px;
-            z-index: 5;
-        }
-
-        .connecting .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid rgba(99, 102, 241, 0.3);
-            border-top-color: #6366f1;
-            border-radius: 50%;
-            animation: spin 0.6s linear infinite;
-        }
-
-        .connecting p {
-            color: #71717a;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            font-size: 0.85rem;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        .hidden {
-            display: none !important;
+        .error {
+            color: #ef4444;
+            padding: 20px;
+            font-family: monospace;
         }
     </style>
 </head>
 <body>
     <div id="terminal"></div>
 
-    <div class="connecting" id="connecting">
-        <div class="spinner"></div>
-        <p>Connecting...</p>
-    </div>
-
-    <div class="reconnect-overlay" id="reconnect">
-        <p id="reconnect-text">Connection lost</p>
-        <button onclick="reconnect()">Reconnect</button>
-    </div>
-
+    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
     <script>
-        let term = null;
-        let ws = null;
-        let fitAddon = null;
-        let ttydPort = 7681;
-        let sessionName = null;
-
-        // Get session from URL params
         const params = new URLSearchParams(window.location.search);
-        sessionName = params.get('session');
+        const port = params.get('port') || 7681;
+        const name = params.get('name') || 'terminal';
 
-        if (!sessionName) {
-            document.getElementById('connecting').innerHTML = '<p style="color: #ef4444;">No session specified</p>';
-        }
+        document.title = name + ' - Terminal';
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', async () => {
-            if (!sessionName) return;
-
-            // Get ttyd port from server
-            try {
-                const res = await fetch('/api/status');
-                const data = await res.json();
-                if (data.ttyd_port) ttydPort = data.ttyd_port;
-            } catch (e) {
-                // Use default
-            }
-
-            initTerminal();
-            startAndConnect();
+        const term = new Terminal({
+            cursorBlink: true,
+            fontSize: 14,
+            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+            theme: {
+                background: '#0f0f1a',
+                foreground: '#e4e4e7',
+                cursor: '#6366f1',
+                cursorAccent: '#0f0f1a',
+                selection: 'rgba(99, 102, 241, 0.3)',
+                black: '#1a1a2e',
+                red: '#ef4444',
+                green: '#22c55e',
+                yellow: '#eab308',
+                blue: '#3b82f6',
+                magenta: '#a855f7',
+                cyan: '#06b6d4',
+                white: '#e4e4e7',
+                brightBlack: '#3f3f5a',
+                brightRed: '#f87171',
+                brightGreen: '#4ade80',
+                brightYellow: '#facc15',
+                brightBlue: '#60a5fa',
+                brightMagenta: '#c084fc',
+                brightCyan: '#22d3ee',
+                brightWhite: '#fafafa',
+            },
         });
 
-        function initTerminal() {
-            term = new Terminal({
-                cursorBlink: true,
-                fontSize: 14,
-                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-                scrollback: 5000,
-                theme: {
-                    background: '#0f0f17',
-                    foreground: '#e4e4e7',
-                    cursor: '#6366f1',
-                    selection: 'rgba(99, 102, 241, 0.3)',
-                    black: '#1a1a2e',
-                    red: '#ef4444',
-                    green: '#22c55e',
-                    yellow: '#f59e0b',
-                    blue: '#3b82f6',
-                    magenta: '#a855f7',
-                    cyan: '#06b6d4',
-                    white: '#e4e4e7',
-                    brightBlack: '#52525b',
-                    brightRed: '#f87171',
-                    brightGreen: '#4ade80',
-                    brightYellow: '#fbbf24',
-                    brightBlue: '#60a5fa',
-                    brightMagenta: '#c084fc',
-                    brightCyan: '#22d3ee',
-                    brightWhite: '#f4f4f5',
-                },
-            });
+        const fitAddon = new FitAddon.FitAddon();
+        term.loadAddon(fitAddon);
+        term.open(document.getElementById('terminal'));
+        fitAddon.fit();
 
-            fitAddon = new FitAddon.FitAddon();
-            const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+        // Connect to ttyd
+        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${protocol}//${location.hostname}:${port}/ws`;
 
-            term.loadAddon(fitAddon);
-            term.loadAddon(webLinksAddon);
+        let socket;
+        let reconnectAttempts = 0;
 
-            term.open(document.getElementById('terminal'));
-            fitAddon.fit();
+        function connect() {
+            socket = new WebSocket(wsUrl);
+            socket.binaryType = 'arraybuffer';
 
-            // Handle resize
-            window.addEventListener('resize', () => {
-                if (fitAddon && term) {
-                    fitAddon.fit();
-                }
-            });
-
-            // Focus terminal on touch (mobile keyboard)
-            document.getElementById('terminal').addEventListener('touchstart', () => {
-                term.focus();
-            });
-
-            // Set page title
-            document.title = `${sessionName} - Terminal`;
-        }
-
-        async function startAndConnect() {
-            try {
-                const res = await fetch('/api/ttyd/start', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ session: sessionName }),
-                });
-
-                const data = await res.json();
-
-                if (res.ok) {
-                    // Wait for ttyd to be ready
-                    setTimeout(() => {
-                        connectTerminal();
-                    }, 300);
-                } else {
-                    document.getElementById('connecting').innerHTML =
-                        `<p style="color: #ef4444;">${escapeHtml(data.error || 'Failed to start')}</p>`;
-                }
-            } catch (e) {
-                document.getElementById('connecting').innerHTML =
-                    '<p style="color: #ef4444;">Server connection failed</p>';
-            }
-        }
-
-        function connectTerminal() {
-            if (ws) {
-                ws.close();
-            }
-
-            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${location.host}/ws`;
-
-            ws = new WebSocket(wsUrl);
-            ws.binaryType = 'arraybuffer';
-
-            ws.onopen = () => {
-                document.getElementById('connecting').classList.add('hidden');
-                document.getElementById('reconnect').classList.remove('active');
-
-                // Send initial size
-                const dims = fitAddon.proposeDimensions();
-                if (dims) {
-                    ws.send('1' + JSON.stringify({ columns: dims.cols, rows: dims.rows }));
-                }
-
-                fitAddon.fit();
-                term.focus();
+            socket.onopen = () => {
+                console.log('Connected');
+                reconnectAttempts = 0;
+                // Send initial resize
+                sendResize(term.cols, term.rows);
             };
 
-            ws.onmessage = (event) => {
-                if (typeof event.data === 'string') {
-                    if (event.data[0] === '0') {
-                        term.write(event.data.slice(1));
-                    }
-                } else {
+            socket.onmessage = (event) => {
+                if (event.data instanceof ArrayBuffer) {
                     const data = new Uint8Array(event.data);
-                    if (data[0] === 48) { // '0' ASCII
-                        term.write(new TextDecoder().decode(data.slice(1)));
+                    if (data[0] === 0) {
+                        term.write(data.slice(1));
+                    } else if (data[0] === 1) {
+                        // title update - ignore or use
                     }
+                } else {
+                    term.write(event.data);
                 }
             };
 
-            ws.onclose = () => {
-                document.getElementById('reconnect').classList.add('active');
-                document.getElementById('reconnect-text').textContent = 'Connection lost';
+            socket.onerror = (e) => {
+                console.error('WebSocket error:', e);
             };
 
-            ws.onerror = () => {
-                document.getElementById('reconnect').classList.add('active');
-                document.getElementById('reconnect-text').textContent = 'Connection error';
+            socket.onclose = () => {
+                console.log('Disconnected');
+                if (reconnectAttempts < 5) {
+                    reconnectAttempts++;
+                    term.write('\r\n\x1b[33mReconnecting...\x1b[0m\r\n');
+                    setTimeout(connect, 1000 * reconnectAttempts);
+                } else {
+                    term.write('\r\n\x1b[31mConnection lost. Refresh to retry.\x1b[0m\r\n');
+                }
             };
+        }
 
-            // Send terminal input
-            term.onData((data) => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send('0' + data);
+        function sendInput(data) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const payload = new Uint8Array(data.length + 1);
+                payload[0] = 0;
+                for (let i = 0; i < data.length; i++) {
+                    payload[i + 1] = data.charCodeAt(i);
                 }
-            });
+                socket.send(payload);
+            }
+        }
 
-            // Handle resize
-            term.onResize(({ cols, rows }) => {
-                if (ws && ws.readyState === WebSocket.OPEN) {
-                    ws.send('1' + JSON.stringify({ columns: cols, rows: rows }));
+        function sendResize(cols, rows) {
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                const msg = JSON.stringify({ columns: cols, rows: rows });
+                const payload = new Uint8Array(msg.length + 1);
+                payload[0] = 1;
+                for (let i = 0; i < msg.length; i++) {
+                    payload[i + 1] = msg.charCodeAt(i);
                 }
-            });
+                socket.send(payload);
+            }
         }
 
-        function reconnect() {
-            document.getElementById('reconnect').classList.remove('active');
-            document.getElementById('connecting').classList.remove('hidden');
-            document.getElementById('connecting').innerHTML = '<div class="spinner"></div><p>Reconnecting...</p>';
-            startAndConnect();
-        }
+        // Terminal input
+        term.onData(sendInput);
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
-        }
+        // Terminal resize
+        term.onResize(({ cols, rows }) => sendResize(cols, rows));
+
+        // Window resize
+        window.addEventListener('resize', () => fitAddon.fit());
+
+        // Start connection
+        connect();
+
+        // Focus terminal
+        term.focus();
     </script>
 </body>
 </html>

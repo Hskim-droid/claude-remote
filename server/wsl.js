@@ -1,198 +1,256 @@
 /**
- * WSL command execution
+ * WSL command execution utilities
  */
 
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
+const { promisify } = require('util');
+const net = require('net');
 const config = require('./config');
-const { shellQuote } = require('./security');
+const { shellEscape } = require('./security');
+
+const execAsync = promisify(exec);
 
 /**
- * Run command in WSL
- * @param {string} cmd
- * @param {number} timeout
- * @returns {Promise<{stdout: string, stderr: string, code: number}>}
+ * Sleep utility
+ * @param {number} ms - Milliseconds to sleep
+ * @returns {Promise<void>}
  */
-function runCommand(cmd, timeout = 30000) {
-  return new Promise((resolve) => {
-    const args = ['-d', config.WSL_DISTRO, '--', 'bash', '-c', cmd];
-
-    const proc = spawn('wsl', args, {
-      windowsHide: true,
-    });
-
-    let stdout = '';
-    let stderr = '';
-    let killed = false;
-
-    const timer = setTimeout(() => {
-      killed = true;
-      proc.kill();
-    }, timeout);
-
-    proc.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    proc.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    proc.on('close', (code) => {
-      clearTimeout(timer);
-      resolve({
-        stdout: stdout.trim(),
-        stderr: stderr.trim(),
-        code: killed ? -1 : (code || 0),
-      });
-    });
-
-    proc.on('error', (err) => {
-      clearTimeout(timer);
-      resolve({
-        stdout: '',
-        stderr: err.message,
-        code: -1,
-      });
-    });
-  });
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
 
 /**
- * Check if a command exists in WSL
- * @param {string} cmd
+ * Check if a port is listening (accepts connections)
+ * @param {number} port - Port to check
+ * @param {string} host - Host to check (default: localhost)
  * @returns {Promise<boolean>}
  */
-async function commandExists(cmd) {
-  const result = await runCommand(`which ${shellQuote(cmd)}`);
-  return result.code === 0;
+function isPortListening(port, host = 'localhost') {
+    return new Promise((resolve) => {
+        const socket = new net.Socket();
+        socket.setTimeout(500);
+
+        socket.on('connect', () => {
+            socket.destroy();
+            resolve(true);
+        });
+
+        socket.on('timeout', () => {
+            socket.destroy();
+            resolve(false);
+        });
+
+        socket.on('error', () => {
+            socket.destroy();
+            resolve(false);
+        });
+
+        socket.connect(port, host);
+    });
+}
+
+/**
+ * Execute command in WSL
+ * @param {string} command - Command to execute
+ * @returns {Promise<{stdout: string, stderr: string}>}
+ */
+async function wslExec(command) {
+    const wslCommand = `wsl -d ${config.wslDistro} -- ${command}`;
+    return execAsync(wslCommand);
 }
 
 /**
  * Check if tmux session exists
- * @param {string} name
+ * @param {string} sessionName - Session name
  * @returns {Promise<boolean>}
  */
-async function sessionExists(name) {
-  const result = await runCommand(`tmux has-session -t ${shellQuote(name)} 2>/dev/null && echo 'exists'`);
-  return result.stdout.includes('exists');
-}
-
-/**
- * List tmux sessions
- * @returns {Promise<Array<{name: string, created: string, attached: boolean}>>}
- */
-async function listSessions() {
-  const result = await runCommand(
-    "tmux list-sessions -F '#{session_name}:#{session_created}:#{session_attached}' 2>/dev/null || echo ''"
-  );
-
-  const sessions = [];
-  for (const line of result.stdout.split('\n')) {
-    if (line && line.includes(':')) {
-      const parts = line.split(':');
-      if (parts.length >= 3) {
-        sessions.push({
-          name: parts[0],
-          created: parts[1],
-          attached: parts[2] === '1',
-        });
-      }
+async function tmuxSessionExists(sessionName) {
+    try {
+        await wslExec(`tmux has-session -t ${shellEscape(sessionName)}`);
+        return true;
+    } catch {
+        return false;
     }
-  }
-  return sessions;
 }
 
 /**
- * Create new tmux session with Claude
- * @param {string} name
- * @param {string} workingDir
- * @returns {Promise<{success: boolean, error?: string}>}
+ * List all tmux sessions
+ * @returns {Promise<string[]>}
  */
-async function createSession(name, workingDir) {
-  const cmd = `cd ${shellQuote(workingDir)} && tmux new-session -d -s ${shellQuote(name)} 'claude'`;
-  const result = await runCommand(cmd);
+async function listTmuxSessions() {
+    try {
+        const { stdout } = await wslExec('tmux list-sessions -F "#{session_name}"');
+        return stdout.trim().split('\n').filter(Boolean);
+    } catch {
+        return [];
+    }
+}
 
-  if (result.code !== 0) {
-    return { success: false, error: result.stderr || 'Failed to create session' };
-  }
-  return { success: true };
+/**
+ * Create new tmux session with Claude Code
+ * @param {string} sessionName - Session name
+ * @param {string} workDir - Working directory
+ * @returns {Promise<void>}
+ */
+async function createTmuxSession(sessionName, workDir) {
+    const escapedName = shellEscape(sessionName);
+    const escapedDir = shellEscape(workDir);
+
+    // Create detached tmux session and run claude
+    const command = `tmux new-session -d -s ${escapedName} -c ${escapedDir} 'claude'`;
+    await wslExec(command);
+
+    // Verify session was created
+    await sleep(300);
+    const exists = await tmuxSessionExists(sessionName);
+    if (!exists) {
+        throw new Error('Failed to create tmux session');
+    }
 }
 
 /**
  * Kill tmux session
- * @param {string} name
- * @returns {Promise<{success: boolean, error?: string}>}
+ * @param {string} sessionName - Session name
+ * @returns {Promise<void>}
  */
-async function killSession(name) {
-  const result = await runCommand(`tmux kill-session -t ${shellQuote(name)}`);
-
-  if (result.code !== 0) {
-    return { success: false, error: result.stderr || 'Failed to kill session' };
-  }
-  return { success: true };
+async function killTmuxSession(sessionName) {
+    const escapedName = shellEscape(sessionName);
+    await wslExec(`tmux kill-session -t ${escapedName}`);
 }
 
 /**
- * Start ttyd for a session
- * @param {string} sessionName
- * @returns {Promise<{success: boolean, port?: number, error?: string}>}
+ * Check if ttyd is running on specific port
+ * @param {number} port - Port to check
+ * @returns {Promise<boolean>}
  */
-async function startTtyd(sessionName) {
-  // Kill existing ttyd
-  await runCommand("pkill -f 'ttyd.*tmux attach' 2>/dev/null || true");
-
-  // Build ttyd command
-  let ttydCmd = `ttyd -p ${config.TTYD_PORT} -W`;
-
-  // Add auth if configured
-  if (config.TTYD_AUTH_USER && config.TTYD_AUTH_PASS) {
-    ttydCmd += ` -c ${shellQuote(config.TTYD_AUTH_USER)}:${shellQuote(config.TTYD_AUTH_PASS)}`;
-  }
-
-  ttydCmd += ` tmux attach -t ${shellQuote(sessionName)}`;
-
-  // Start in background
-  await runCommand(`nohup ${ttydCmd} > /tmp/ttyd.log 2>&1 &`);
-
-  // Wait and verify
-  await new Promise(resolve => setTimeout(resolve, 500));
-
-  const check = await runCommand(`pgrep -f 'ttyd.*${config.TTYD_PORT}' && echo 'running'`);
-
-  if (check.stdout.includes('running')) {
-    return { success: true, port: config.TTYD_PORT };
-  }
-  return { success: false, error: 'Failed to start ttyd' };
+async function isTtydRunning(port) {
+    try {
+        const { stdout } = await wslExec(`pgrep -f "ttyd.*-p ${port}"`);
+        return stdout.trim().length > 0;
+    } catch {
+        return false;
+    }
 }
 
 /**
- * Get system status
- * @returns {Promise<object>}
+ * Kill ttyd process on specific port
+ * @param {number} port - Port to kill
+ * @returns {Promise<void>}
  */
-async function getStatus() {
-  const [tmux, ttyd, claude, ttydRunning] = await Promise.all([
-    commandExists('tmux'),
-    commandExists('ttyd'),
-    commandExists('claude'),
-    runCommand(`pgrep -f 'ttyd.*${config.TTYD_PORT}' && echo 'running'`),
-  ]);
+async function killTtydOnPort(port) {
+    try {
+        await wslExec(`pkill -f "ttyd.*-p ${port}"`);
+    } catch {
+        // Ignore error if no process found
+    }
+}
 
-  return {
-    tmux,
-    ttyd,
-    claude,
-    ttyd_running: ttydRunning.stdout.includes('running'),
-    ttyd_port: config.TTYD_PORT,
-  };
+/**
+ * Kill all ttyd processes
+ * @returns {Promise<void>}
+ */
+async function killAllTtyd() {
+    try {
+        await wslExec('pkill -f ttyd');
+    } catch {
+        // Ignore error if no process found
+    }
+}
+
+/**
+ * Start ttyd attached to tmux session
+ * @param {string} sessionName - Session name
+ * @param {number} port - Port to listen on
+ * @returns {Promise<void>}
+ */
+async function startTtyd(sessionName, port = config.ttydPort) {
+    // Kill existing ttyd on this port only (allow multiple sessions)
+    await killTtydOnPort(port);
+    await sleep(200);
+
+    const escapedName = shellEscape(sessionName);
+
+    // Build ttyd command
+    let ttydCmd = `ttyd -p ${port} -W`;
+
+    // Add authentication if configured
+    if (config.ttydAuthUser && config.ttydAuthPass) {
+        ttydCmd += ` -c ${shellEscape(config.ttydAuthUser)}:${shellEscape(config.ttydAuthPass)}`;
+    }
+
+    // Attach to tmux session
+    ttydCmd += ` tmux attach-session -t ${escapedName}`;
+
+    // Start ttyd using spawn with detached option
+    // This properly backgrounds the process on Windows
+    const child = spawn('wsl', ['-d', config.wslDistro, '--', ...ttydCmd.split(' ')], {
+        detached: true,
+        stdio: 'ignore',
+    });
+    child.unref();
+
+    // Verify ttyd is listening (max 3 seconds)
+    for (let i = 0; i < 6; i++) {
+        await sleep(500);
+        const listening = await isPortListening(port);
+        if (listening) {
+            return;
+        }
+    }
+    throw new Error(`ttyd failed to start on port ${port}`);
+}
+
+/**
+ * Discover existing Claude Code sessions from ~/.claude/projects
+ * @returns {Promise<Array<{name: string, path: string}>>}
+ */
+async function discoverClaudeSessions() {
+    try {
+        const { stdout } = await wslExec('ls -1 ~/.claude/projects 2>/dev/null');
+        const dirs = stdout.trim().split('\n').filter(Boolean);
+
+        return dirs.map(dir => ({
+            name: dir,
+            path: `~/.claude/projects/${dir}`,
+        }));
+    } catch {
+        return [];
+    }
+}
+
+/**
+ * Check if required tools are installed in WSL
+ * @returns {Promise<{tmux: boolean, ttyd: boolean, claude: boolean}>}
+ */
+async function checkDependencies() {
+    const check = async (cmd) => {
+        try {
+            await wslExec(`which ${cmd}`);
+            return true;
+        } catch {
+            return false;
+        }
+    };
+
+    return {
+        tmux: await check('tmux'),
+        ttyd: await check('ttyd'),
+        claude: await check('claude'),
+    };
 }
 
 module.exports = {
-  runCommand,
-  commandExists,
-  sessionExists,
-  listSessions,
-  createSession,
-  killSession,
-  startTtyd,
-  getStatus,
+    sleep,
+    isPortListening,
+    wslExec,
+    tmuxSessionExists,
+    listTmuxSessions,
+    createTmuxSession,
+    killTmuxSession,
+    isTtydRunning,
+    killTtydOnPort,
+    killAllTtyd,
+    startTtyd,
+    discoverClaudeSessions,
+    checkDependencies,
 };

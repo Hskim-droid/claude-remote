@@ -3,158 +3,136 @@
  */
 
 const express = require('express');
+const sessions = require('./sessions');
+const wsl = require('./wsl');
 const config = require('./config');
-const { sanitizeSessionName, sanitizePath, RateLimiter } = require('./security');
-const executor = require('./executor');
 
 const router = express.Router();
-const rateLimiter = new RateLimiter(config.RATE_LIMIT_MAX, config.RATE_LIMIT_WINDOW);
-
-// Cleanup rate limiter every 5 minutes
-setInterval(() => rateLimiter.cleanup(), 5 * 60 * 1000);
 
 /**
- * Rate limiting middleware
+ * GET /api/health
+ * Health check endpoint
  */
-router.use((req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  if (!rateLimiter.isAllowed(ip)) {
-    return res.status(429).json({ error: 'Too many requests' });
-  }
-  next();
+router.get('/health', async (req, res) => {
+    try {
+        const deps = await wsl.checkDependencies();
+        res.json({
+            status: 'ok',
+            dependencies: deps,
+            config: {
+                wslDistro: config.wslDistro,
+                ttydPort: config.ttydPort,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 /**
- * GET /api/status - System status
- */
-router.get('/status', async (req, res) => {
-  try {
-    const status = await executor.getStatus();
-    res.json(status);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-/**
- * GET /api/sessions - List sessions
+ * GET /api/sessions
+ * List all sessions
  */
 router.get('/sessions', async (req, res) => {
-  try {
-    const sessions = await executor.listSessions();
-    res.json({ sessions });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+    try {
+        await sessions.syncSessions();
+        const allSessions = sessions.getAllSessions();
+        res.json(allSessions);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 /**
- * POST /api/sessions - Create session
+ * POST /api/sessions
+ * Create new session
+ * Body: { name: string, workDir: string }
  */
 router.post('/sessions', async (req, res) => {
-  let { name, workingDir } = req.body || {};
+    try {
+        const { name, workDir } = req.body;
 
-  // Auto-generate name if not provided
-  if (!name) {
-    const sessions = await executor.listSessions();
-    const existing = sessions.map(s => s.name);
-    let num = 1;
-    while (existing.includes(`session-${num}`)) {
-      num++;
+        if (!name || !workDir) {
+            return res.status(400).json({ error: 'name and workDir are required' });
+        }
+
+        const session = await sessions.createSession(name, workDir);
+        res.status(201).json(session);
+    } catch (error) {
+        res.status(400).json({ error: error.message });
     }
-    name = `session-${num}`;
-  }
-
-  // Validate session name
-  const safeName = sanitizeSessionName(name);
-  if (!safeName) {
-    return res.status(400).json({ error: 'Invalid session name (1-32 chars, alphanumeric/hyphen/underscore only)' });
-  }
-
-  // Validate working directory
-  workingDir = workingDir || config.DEFAULT_PATH;
-  const safePath = sanitizePath(workingDir);
-  if (!safePath) {
-    return res.status(400).json({ error: 'Invalid or blocked path' });
-  }
-
-  // Check if session already exists
-  if (await executor.sessionExists(safeName)) {
-    return res.status(409).json({ error: 'Session already exists' });
-  }
-
-  // Create session
-  const result = await executor.createSession(safeName, safePath);
-  if (!result.success) {
-    return res.status(500).json({ error: result.error });
-  }
-
-  res.json({
-    success: true,
-    session: {
-      name: safeName,
-      workingDir: safePath,
-    },
-  });
 });
 
 /**
- * DELETE /api/sessions/:name - Delete session
+ * GET /api/sessions/:name
+ * Get session by name
+ */
+router.get('/sessions/:name', (req, res) => {
+    try {
+        const session = sessions.getSession(req.params.name);
+        if (!session) {
+            return res.status(404).json({ error: 'Session not found' });
+        }
+        res.json(session);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+/**
+ * DELETE /api/sessions/:name
+ * Delete session
  */
 router.delete('/sessions/:name', async (req, res) => {
-  const { name } = req.params;
-
-  // Validate session name
-  const safeName = sanitizeSessionName(name);
-  if (!safeName) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
-
-  // Check if session exists
-  if (!(await executor.sessionExists(safeName))) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  // Kill session
-  const result = await executor.killSession(safeName);
-  if (!result.success) {
-    return res.status(500).json({ error: result.error });
-  }
-
-  res.json({ success: true });
+    try {
+        await sessions.deleteSession(req.params.name);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
 });
 
 /**
- * POST /api/ttyd/start - Start ttyd for session
+ * POST /api/sessions/:name/connect
+ * Connect to session (start ttyd)
  */
-router.post('/ttyd/start', async (req, res) => {
-  const { session } = req.body || {};
+router.post('/sessions/:name/connect', async (req, res) => {
+    try {
+        const port = req.body.port || config.ttydPort;
+        const session = await sessions.connectSession(req.params.name, port);
+        res.json({
+            ...session,
+            ttydUrl: `http://${req.hostname}:${port}`,
+        });
+    } catch (error) {
+        res.status(400).json({ error: error.message });
+    }
+});
 
-  if (!session) {
-    return res.status(400).json({ error: 'Session name required' });
-  }
+/**
+ * GET /api/claude-projects
+ * Discover existing Claude Code projects
+ */
+router.get('/claude-projects', async (req, res) => {
+    try {
+        const projects = await wsl.discoverClaudeSessions();
+        res.json(projects);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
 
-  const safeName = sanitizeSessionName(session);
-  if (!safeName) {
-    return res.status(400).json({ error: 'Invalid session name' });
-  }
-
-  // Check if session exists
-  if (!(await executor.sessionExists(safeName))) {
-    return res.status(404).json({ error: 'Session not found' });
-  }
-
-  // Start ttyd
-  const result = await executor.startTtyd(safeName);
-  if (!result.success) {
-    return res.status(500).json({ error: result.error });
-  }
-
-  res.json({
-    success: true,
-    port: result.port,
-    url: `http://localhost:${result.port}`,
-  });
+/**
+ * GET /api/tmux-sessions
+ * List raw tmux sessions
+ */
+router.get('/tmux-sessions', async (req, res) => {
+    try {
+        const tmuxSessions = await wsl.listTmuxSessions();
+        res.json(tmuxSessions);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 module.exports = router;
