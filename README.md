@@ -15,6 +15,28 @@ Supports **Windows (WSL2)**, **Linux**, and **macOS**.
 
 ## Quick Start
 
+### Windows (WSL2) — Setup Wizard
+
+The setup wizard handles everything automatically: environment check, dependency installation, `.env` configuration, Tailscale setup, and server startup.
+
+```powershell
+git clone https://github.com/Hskim-droid/claude-remote.git
+cd claude-remote
+powershell -ExecutionPolicy Bypass -File setup-wizard.ps1
+```
+
+**Prerequisites**: [Node.js 18+](https://nodejs.org/), WSL2 with Ubuntu (`wsl --install -d Ubuntu`)
+
+The wizard will:
+1. Verify WSL2 and start Ubuntu
+2. Install tmux, ttyd, Claude CLI inside WSL (if missing)
+3. Run `npm install`
+4. Create `.env` from defaults (if not present)
+5. Configure [Tailscale](https://tailscale.com/) remote access (if installed)
+6. Start the server and open the browser
+
+Re-running the wizard is safe — already installed components are skipped.
+
 ### Linux
 
 ```bash
@@ -35,7 +57,7 @@ bash install-deps.sh
 bash start.sh
 ```
 
-### Windows (WSL2)
+### Windows (WSL2) — Manual
 
 ```powershell
 # Install WSL dependencies
@@ -140,6 +162,7 @@ claude-remote/
 │   ├── index.html      # Session manager UI
 │   ├── terminal.html   # Fullscreen terminal
 │   └── manifest.json   # PWA manifest
+├── setup-wizard.ps1    # Windows one-click installer
 ├── start.sh            # Linux/macOS launcher
 ├── start.ps1           # Windows launcher
 ├── install-deps.sh     # Linux/macOS dependency installer
