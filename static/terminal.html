@@ -251,7 +251,7 @@
             }
 
             const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsUrl = `${protocol}//${location.hostname}:${ttydPort}/ws`;
+            const wsUrl = `${protocol}//${location.host}/ws`;
 
             ws = new WebSocket(wsUrl);
             ws.binaryType = 'arraybuffer';
