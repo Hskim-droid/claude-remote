@@ -2,500 +2,864 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="theme-color" content="#0f0f1a">
-    <title>Claude Remote - Sessions</title>
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Claude Code Remote</title>
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+
     <style>
         :root {
-            --bg: #0f0f1a;
-            --bg2: #1a1a2e;
-            --bg3: #252542;
-            --text: #e4e4e7;
-            --text2: #a1a1aa;
+            --bg-primary: #0f0f17;
+            --bg-secondary: #1a1a2e;
+            --bg-card: #222238;
+            --bg-card-hover: #2a2a45;
+            --border: #333355;
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --text-muted: #71717a;
             --accent: #6366f1;
-            --danger: #ef4444;
+            --accent-hover: #4f46e5;
             --success: #22c55e;
-            --border: #3f3f5a;
+            --danger: #ef4444;
+            --danger-hover: #dc2626;
+            --warning: #f59e0b;
+            --safe-top: env(safe-area-inset-top, 0px);
+            --safe-bottom: env(safe-area-inset-bottom, 0px);
         }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: var(--bg);
-            color: var(--text);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
             min-height: 100vh;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            min-height: 100dvh;
+            padding-top: var(--safe-top);
+            padding-bottom: var(--safe-bottom);
         }
+
         .container {
-            max-width: 600px;
+            max-width: 640px;
             margin: 0 auto;
-            padding: 20px;
+            padding: 24px 16px;
         }
-        h1 {
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 40px 0 32px;
+        }
+
+        .header h1 {
             font-size: 1.5rem;
-            margin-bottom: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            letter-spacing: -0.02em;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: center;
+            gap: 16px;
+        }
+
+        .status-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-        }
-        h1 svg { opacity: 0.7; }
-
-        .section {
-            background: var(--bg2);
-            border-radius: 12px;
-            padding: 16px;
-            margin-bottom: 16px;
-        }
-        .section-title {
+            gap: 6px;
             font-size: 0.75rem;
-            text-transform: uppercase;
-            color: var(--text2);
-            margin-bottom: 12px;
-            font-weight: 600;
+            color: var(--text-muted);
         }
 
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: var(--danger);
+            transition: background 0.3s;
+        }
+
+        .status-dot.ok {
+            background: var(--success);
+        }
+
+        /* New Terminal Button */
+        .new-terminal {
+            width: 100%;
+            padding: 20px;
+            margin-bottom: 24px;
+            background: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .new-terminal:hover {
+            background: var(--accent-hover);
+        }
+
+        .new-terminal:active {
+            transform: scale(0.98);
+        }
+
+        .new-terminal svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        /* Section */
+        .section-title {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 12px;
+        }
+
+        /* Session List */
         .session-list {
             display: flex;
             flex-direction: column;
             gap: 8px;
         }
-        .session-item {
+
+        .session-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 16px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 14px 16px;
-            background: var(--bg3);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.15s;
+            transition: background 0.2s;
         }
-        .session-item:active {
-            transform: scale(0.98);
-            background: var(--accent);
+
+        .session-card:hover {
+            background: var(--bg-card-hover);
         }
-        .session-name {
-            font-weight: 500;
+
+        .session-info {
             display: flex;
             align-items: center;
             gap: 10px;
+            flex: 1;
+            min-width: 0;
         }
-        .session-status {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: var(--text2);
+
+        .session-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: var(--bg-secondary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--accent);
         }
-        .session-status.active { background: var(--success); }
-        .session-path {
-            font-size: 0.75rem;
-            color: var(--text2);
+
+        .session-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
+
         .session-actions {
             display: flex;
             gap: 8px;
+            flex-shrink: 0;
         }
 
-        .btn {
-            padding: 12px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.15s;
-        }
-        .btn:active { transform: scale(0.95); }
-        .btn-primary {
+        .btn-open {
+            padding: 8px 16px;
             background: var(--accent);
             color: white;
-            width: 100%;
-        }
-        .btn-small {
-            padding: 8px 14px;
-            font-size: 0.875rem;
-        }
-        .btn-danger {
-            background: var(--danger);
-            color: white;
-        }
-        .btn-open {
-            background: var(--success);
-            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
         }
 
-        .empty {
-            text-align: center;
-            padding: 32px;
-            color: var(--text2);
+        .btn-open:hover {
+            background: var(--accent-hover);
         }
 
-        .new-session-form {
+        .btn-delete {
+            padding: 8px;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
             display: flex;
-            flex-direction: column;
-            gap: 12px;
+            align-items: center;
         }
-        .new-session-form input {
-            padding: 14px 16px;
-            background: var(--bg);
+
+        .btn-delete:hover {
+            color: var(--danger);
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .btn-delete svg {
+            width: 16px;
+            height: 16px;
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--text-muted);
+        }
+
+        .empty-state svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 12px;
+            opacity: 0.4;
+        }
+
+        .empty-state p {
+            font-size: 0.9rem;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.75);
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 24px;
+            width: 100%;
+            max-width: 400px;
+            animation: modalIn 0.2s ease-out;
+        }
+
+        @keyframes modalIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .modal h2 {
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 10px 12px;
             border: 1px solid var(--border);
             border-radius: 8px;
-            color: var(--text);
-            font-size: 1rem;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.9rem;
         }
-        .new-session-form input:focus {
+
+        .form-group input:focus {
             outline: none;
             border-color: var(--accent);
         }
-        .new-session-form input::placeholder {
-            color: var(--text2);
+
+        .form-group .hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 4px;
         }
 
-        .loading {
+        .modal-actions {
             display: flex;
-            justify-content: center;
-            padding: 32px;
+            gap: 10px;
+            margin-top: 24px;
         }
-        .spinner {
-            width: 24px;
-            height: 24px;
-            border: 2px solid var(--border);
-            border-top-color: var(--accent);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
 
+        .modal-actions button {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-cancel {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .btn-cancel:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .btn-confirm {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-confirm:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-confirm:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-confirm-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-confirm-danger:hover {
+            background: var(--danger-hover);
+        }
+
+        /* Toast */
         .toast {
             position: fixed;
-            bottom: 24px;
+            bottom: calc(20px + var(--safe-bottom));
             left: 50%;
-            transform: translateX(-50%);
-            background: var(--bg3);
-            padding: 12px 24px;
-            border-radius: 8px;
-            z-index: 100;
+            transform: translateX(-50%) translateY(100px);
+            padding: 12px 20px;
+            border-radius: 10px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-size: 0.85rem;
+            opacity: 0;
+            transition: all 0.3s;
+            z-index: 200;
+            max-width: 90%;
+            text-align: center;
+            border: 1px solid var(--border);
         }
-        .toast.error { background: var(--danger); }
-        .toast.success { background: var(--success); }
 
-        .health-status {
-            display: flex;
-            gap: 16px;
-            font-size: 0.875rem;
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
         }
-        .health-item {
+
+        .toast.error {
+            background: var(--danger);
+            color: white;
+            border-color: var(--danger);
+        }
+
+        .toast.success {
+            background: var(--success);
+            color: white;
+            border-color: var(--success);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .process-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .badge-tmux {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+        }
+
+        .badge-native {
+            background: rgba(34, 197, 94, 0.15);
+            color: #4ade80;
+        }
+
+        .session-meta {
             display: flex;
             align-items: center;
-            gap: 6px;
+            gap: 8px;
         }
-        .health-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-        }
-        .health-dot.ok { background: var(--success); }
-        .health-dot.fail { background: var(--danger); }
 
-        /* Active session styling */
-        .session-item.running {
-            border: 1px solid var(--success);
-            background: rgba(34, 197, 94, 0.1);
-        }
-        .session-item.running .session-status {
-            animation: pulse 1.5s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        .port-badge {
-            font-size: 0.7rem;
-            color: var(--success);
-            background: rgba(34, 197, 94, 0.2);
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-left: 8px;
+        @media (max-width: 600px) {
+            .container {
+                padding: 16px 12px;
+            }
+
+            .header {
+                padding: 24px 0 20px;
+            }
+
+            .header h1 {
+                font-size: 1.3rem;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <div class="header">
+            <h1>Claude Remote</h1>
+            <div class="status-bar">
+                <div class="status-item">
+                    <span class="status-dot" id="status-tmux"></span>
+                    <span>tmux</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-dot" id="status-claude"></span>
+                    <span>claude</span>
+                </div>
+            </div>
+        </div>
+
+        <button class="new-terminal" onclick="showCreateModal()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
             </svg>
-            Claude Remote
-        </h1>
+            New Terminal
+        </button>
 
-        <!-- Health Status -->
-        <div class="section">
-            <div class="section-title">Status</div>
-            <div id="health" class="health-status">
-                <div class="loading"><div class="spinner"></div></div>
+        <div class="section-title">Open Terminals</div>
+        <div class="session-list" id="session-list"></div>
+
+        <div class="section-title" style="margin-top: 24px;">All Claude Processes</div>
+        <div class="session-list" id="process-list"></div>
+    </div>
+
+    <!-- Create Modal -->
+    <div class="modal-overlay" id="create-modal">
+        <div class="modal">
+            <h2>New Terminal</h2>
+            <div class="form-group">
+                <label>Session Name</label>
+                <input type="text" id="session-name" placeholder="Auto (session-1, session-2...)">
+                <div class="hint">Letters, numbers, hyphens, underscores only</div>
             </div>
-        </div>
-
-        <!-- Active Terminals (currently open) -->
-        <div class="section" id="active-section" style="display:none;">
-            <div class="section-title">Active Terminals</div>
-            <div id="active-sessions" class="session-list"></div>
-        </div>
-
-        <!-- All Sessions List -->
-        <div class="section">
-            <div class="section-title">All Sessions</div>
-            <div id="sessions" class="session-list">
-                <div class="loading"><div class="spinner"></div></div>
+            <div class="form-group">
+                <label>Working Directory</label>
+                <input type="text" id="working-dir" placeholder="Loading...">
             </div>
-        </div>
-
-        <!-- New Session -->
-        <div class="section">
-            <div class="section-title">New Session</div>
-            <div class="new-session-form">
-                <input type="text" id="new-name" placeholder="Session name (e.g. my-project)">
-                <input type="text" id="new-path" placeholder="Path (e.g. /mnt/c/Projects/app)" value="/mnt/c/">
-                <button class="btn btn-primary" id="btn-create">Create & Open</button>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideCreateModal()">Cancel</button>
+                <button class="btn-confirm" id="btn-create" onclick="createSession()">Create</button>
             </div>
         </div>
     </div>
 
+    <!-- Delete Confirm Modal -->
+    <div class="modal-overlay" id="delete-modal">
+        <div class="modal">
+            <h2>Delete Session</h2>
+            <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 4px;">
+                Are you sure you want to delete <strong id="delete-session-name"></strong>?
+            </p>
+            <p style="color: var(--text-muted); font-size: 0.8rem;">This will terminate the terminal session.</p>
+            <div class="modal-actions">
+                <button class="btn-cancel" onclick="hideDeleteModal()">Cancel</button>
+                <button class="btn-confirm-danger" onclick="confirmDelete()">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <h2>Authentication Required</h2>
+            <div class="form-group">
+                <label>Token</label>
+                <input type="password" id="auth-token-input" placeholder="Enter access token">
+            </div>
+            <div class="modal-actions">
+                <button class="btn-confirm" id="btn-auth" onclick="submitToken()" style="flex:1">Login</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
     <script>
-        const API = '/api';
+        let defaultPath = '';
+        let deleteTarget = null;
+        let authToken = sessionStorage.getItem('auth-token') || '';
 
-        async function fetchHealth() {
+        function authHeaders() {
+            const h = { 'Content-Type': 'application/json' };
+            if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+            return h;
+        }
+
+        function authFetch(url, opts = {}) {
+            opts.headers = { ...authHeaders(), ...(opts.headers || {}) };
+            return fetch(url, opts);
+        }
+
+        // Auth check
+        async function checkAuth() {
             try {
-                const res = await fetch(`${API}/health`);
+                const res = await fetch('/api/auth-status');
                 const data = await res.json();
-                document.getElementById('health').innerHTML = `
-                    <div class="health-item">
-                        <span class="health-dot ${data.dependencies.tmux ? 'ok' : 'fail'}"></span>
-                        tmux
-                    </div>
-                    <div class="health-item">
-                        <span class="health-dot ${data.dependencies.ttyd ? 'ok' : 'fail'}"></span>
-                        ttyd
-                    </div>
-                    <div class="health-item">
-                        <span class="health-dot ${data.dependencies.claude ? 'ok' : 'fail'}"></span>
-                        claude
-                    </div>
-                `;
-            } catch (e) {
-                document.getElementById('health').innerHTML = '<span style="color:var(--danger)">Connection failed</span>';
+                if (!data.authRequired) return true;
+
+                if (authToken) {
+                    const verify = await authFetch('/api/status');
+                    if (verify.ok) return true;
+                    sessionStorage.removeItem('auth-token');
+                    authToken = '';
+                }
+
+                document.getElementById('auth-modal').classList.add('active');
+                document.getElementById('auth-token-input').focus();
+                return false;
+            } catch {
+                return true;
             }
         }
 
-        async function fetchSessions() {
-            try {
-                const res = await fetch(`${API}/sessions`);
-                const sessions = await res.json();
+        async function submitToken() {
+            const input = document.getElementById('auth-token-input');
+            const token = input.value.trim();
+            if (!token) return;
 
-                // Also get tmux sessions
-                const tmuxRes = await fetch(`${API}/tmux-sessions`);
-                const tmuxSessions = await tmuxRes.json();
-
-                // Merge
-                const allSessions = [...sessions];
-                for (const name of tmuxSessions) {
-                    if (!allSessions.find(s => s.name === name)) {
-                        allSessions.push({ name, workDir: '~', active: false });
-                    }
-                }
-
-                // Separate active (running ttyd) from inactive
-                const activeSessions = allSessions.filter(s => s.active && s.ttydPort);
-                const inactiveSessions = allSessions.filter(s => !s.active || !s.ttydPort);
-
-                // Render active terminals section
-                const activeSection = document.getElementById('active-section');
-                const activeContainer = document.getElementById('active-sessions');
-
-                if (activeSessions.length > 0) {
-                    activeSection.style.display = 'block';
-                    activeContainer.innerHTML = activeSessions.map(s => `
-                        <div class="session-item running" data-name="${s.name}" onclick="openTerminalDirect(${s.ttydPort}, '${s.name}')">
-                            <div>
-                                <div class="session-name">
-                                    <span class="session-status active"></span>
-                                    ${s.name}
-                                    <span class="port-badge">:${s.ttydPort}</span>
-                                </div>
-                                <div class="session-path">${s.workDir || '~'}</div>
-                            </div>
-                            <div class="session-actions">
-                                <button class="btn btn-small btn-open" onclick="openTerminalDirect(${s.ttydPort}, '${s.name}', event)">Open</button>
-                            </div>
-                        </div>
-                    `).join('');
-                } else {
-                    activeSection.style.display = 'none';
-                }
-
-                // Render all sessions
-                if (allSessions.length === 0) {
-                    document.getElementById('sessions').innerHTML = '<div class="empty">No sessions</div>';
-                    return;
-                }
-
-                document.getElementById('sessions').innerHTML = allSessions.map(s => `
-                    <div class="session-item ${s.active ? 'running' : ''}" data-name="${s.name}" onclick="openSession('${s.name}')">
-                        <div>
-                            <div class="session-name">
-                                <span class="session-status ${s.active ? 'active' : ''}"></span>
-                                ${s.name}
-                                ${s.ttydPort ? `<span class="port-badge">:${s.ttydPort}</span>` : ''}
-                            </div>
-                            <div class="session-path">${s.workDir || '~'}</div>
-                        </div>
-                        <div class="session-actions">
-                            <button class="btn btn-small btn-open" onclick="openSession('${s.name}', event)">Open</button>
-                            <button class="btn btn-small btn-danger" onclick="deleteSession('${s.name}', event)">X</button>
-                        </div>
-                    </div>
-                `).join('');
-            } catch (e) {
-                document.getElementById('sessions').innerHTML = '<div class="empty">Failed to load</div>';
-            }
-        }
-
-        // Open terminal directly (for already running sessions)
-        function openTerminalDirect(port, name, event) {
-            if (event) event.stopPropagation();
-            window.open(`/terminal.html?port=${port}&name=${encodeURIComponent(name)}`, '_blank');
-        }
-
-        async function openSession(name, event) {
-            if (event) {
-                event.stopPropagation();
-                // Show loading on button
-                const btn = event.target;
-                const originalText = btn.textContent;
-                btn.textContent = '...';
-                btn.disabled = true;
-
-                try {
-                    await doOpenSession(name);
-                } finally {
-                    btn.textContent = originalText;
-                    btn.disabled = false;
-                }
+            authToken = token;
+            const res = await authFetch('/api/status');
+            if (res.ok) {
+                sessionStorage.setItem('auth-token', token);
+                document.getElementById('auth-modal').classList.remove('active');
+                init();
             } else {
-                await doOpenSession(name);
+                authToken = '';
+                showToast('Invalid token', 'error');
+                input.value = '';
+                input.focus();
             }
         }
 
-        async function doOpenSession(name) {
-            // Connect to session (starts ttyd if not running)
-            const res = await fetch(`${API}/sessions/${encodeURIComponent(name)}/connect`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({})
+        document.addEventListener('DOMContentLoaded', async () => {
+            document.getElementById('auth-token-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitToken();
             });
+            if (await checkAuth()) init();
+        });
 
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || 'Failed to connect');
-            }
-
-            const data = await res.json();
-
-            // Open terminal in new window
-            const port = data.ttydPort || 7681;
-            window.open(`/terminal.html?port=${port}&name=${encodeURIComponent(name)}`, '_blank');
-
-            // Refresh list
-            setTimeout(fetchSessions, 500);
+        function init() {
+            checkStatus();
+            refreshSessions();
+            refreshProcesses();
+            setInterval(refreshSessions, 5000);
+            setInterval(refreshProcesses, 5000);
         }
 
-        async function deleteSession(name, event) {
-            if (event) event.stopPropagation();
-            if (!confirm(`Delete "${name}"?`)) return;
-
+        // Check status and get config
+        async function checkStatus() {
             try {
-                await fetch(`${API}/sessions/${encodeURIComponent(name)}`, { method: 'DELETE' });
-                fetchSessions();
-                showToast('Deleted', 'success');
+                const res = await authFetch('/api/status');
+                const data = await res.json();
+
+                document.getElementById('status-tmux').classList.toggle('ok', data.tmux);
+                document.getElementById('status-claude').classList.toggle('ok', data.claude);
+
+                if (data.default_path) {
+                    defaultPath = data.default_path;
+                    document.getElementById('working-dir').placeholder = defaultPath;
+                    document.getElementById('working-dir').value = defaultPath;
+                }
             } catch (e) {
-                showToast('Failed to delete', 'error');
+                console.error('Status check failed:', e);
             }
         }
 
+        // Refresh sessions
+        async function refreshSessions() {
+            try {
+                const res = await authFetch('/api/sessions');
+                const data = await res.json();
+                renderSessions(data.sessions);
+            } catch (e) {
+                console.error('Session refresh failed:', e);
+            }
+        }
+
+        // Render sessions
+        function renderSessions(sessions) {
+            const container = document.getElementById('session-list');
+
+            if (!sessions || sessions.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                        <p>No terminals running</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = sessions.map(s => `
+                <div class="session-card">
+                    <div class="session-info">
+                        <div class="session-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="4 17 10 11 4 5"></polyline>
+                                <line x1="12" y1="19" x2="20" y2="19"></line>
+                            </svg>
+                        </div>
+                        <span class="session-name">${escapeHtml(s.name)}</span>
+                    </div>
+                    <div class="session-actions">
+                        <button class="btn-open" onclick="openSession('${escapeAttr(s.name)}')">Open</button>
+                        <button class="btn-delete" onclick="showDeleteModal('${escapeAttr(s.name)}')" title="Delete">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="3 6 5 6 21 6"></polyline>
+                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Refresh processes
+        async function refreshProcesses() {
+            try {
+                const res = await authFetch('/api/processes');
+                const data = await res.json();
+                renderProcesses(data.processes);
+            } catch (e) {
+                console.error('Process refresh failed:', e);
+            }
+        }
+
+        // Render processes
+        function renderProcesses(processes) {
+            const container = document.getElementById('process-list');
+
+            if (!processes || processes.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <p>No Claude processes detected</p>
+                    </div>`;
+                return;
+            }
+
+            container.innerHTML = processes.map(p => `
+                <div class="session-card">
+                    <div class="session-info">
+                        <div class="session-icon" style="${p.type === 'native' ? 'color: #22c55e;' : ''}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                ${p.type === 'tmux'
+                                    ? '<polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line>'
+                                    : '<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>'}
+                            </svg>
+                        </div>
+                        <div class="session-meta">
+                            <span class="session-name">${escapeHtml(p.name)}</span>
+                            <span class="process-badge ${p.type === 'tmux' ? 'badge-tmux' : 'badge-native'}">${p.type === 'tmux' ? 'tmux' : 'local'}</span>
+                        </div>
+                    </div>
+                    <div class="session-actions">
+                        ${p.connectable
+                            ? `<button class="btn-open" onclick="openSession('${escapeAttr(p.name)}')">Open</button>`
+                            : `<span style="color: var(--text-muted); font-size: 0.75rem;">Running</span>`}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Open session in new window
+        function openSession(name) {
+            window.open(`/terminal?session=${encodeURIComponent(name)}`, '_blank');
+        }
+
+        // Create session
         async function createSession() {
-            const name = document.getElementById('new-name').value.trim();
-            const path = document.getElementById('new-path').value.trim();
-
-            if (!name) {
-                showToast('Enter session name', 'error');
-                return;
-            }
-            if (!path) {
-                showToast('Enter path', 'error');
-                return;
-            }
-
-            // Show loading state
+            const nameInput = document.getElementById('session-name');
+            const dirInput = document.getElementById('working-dir');
             const btn = document.getElementById('btn-create');
-            const originalText = btn.textContent;
-            btn.textContent = 'Creating...';
+            const name = nameInput.value.trim();
+            const workingDir = dirInput.value.trim();
+
             btn.disabled = true;
+            btn.innerHTML = '<span class="spinner"></span>';
 
             try {
-                const res = await fetch(`${API}/sessions`, {
+                const res = await authFetch('/api/sessions', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, workDir: path })
+                    body: JSON.stringify({ name: name || undefined, workingDir: workingDir || undefined }),
                 });
 
                 const data = await res.json();
 
-                if (!res.ok) {
-                    throw new Error(data.error);
+                if (res.ok) {
+                    showToast(`"${data.session.name}" created`, 'success');
+                    hideCreateModal();
+                    refreshSessions();
+                    // Open the new session — use e2eUrl if available (E2E mode)
+                    const url = data.e2eUrl || `/terminal?session=${encodeURIComponent(data.session.name)}`;
+                    window.open(url, '_blank');
+                } else {
+                    showToast(data.error || 'Failed to create session', 'error');
                 }
-
-                document.getElementById('new-name').value = '';
-
-                // Session is already ready with ttyd running - open directly
-                const port = data.ttydPort;
-                window.open(`/terminal.html?port=${port}&name=${encodeURIComponent(name)}`, '_blank');
-
-                fetchSessions();
-                showToast('Session created', 'success');
             } catch (e) {
-                showToast(e.message || 'Failed to create', 'error');
+                showToast('Server connection failed', 'error');
             } finally {
-                btn.textContent = originalText;
                 btn.disabled = false;
+                btn.textContent = 'Create';
             }
         }
 
-        function showToast(msg, type = 'info') {
-            const existing = document.querySelector('.toast');
-            if (existing) existing.remove();
-
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-
-            setTimeout(() => toast.remove(), 2500);
+        // Delete flow
+        function showDeleteModal(name) {
+            deleteTarget = name;
+            document.getElementById('delete-session-name').textContent = name;
+            document.getElementById('delete-modal').classList.add('active');
         }
 
-        // Init
-        document.getElementById('btn-create').addEventListener('click', createSession);
-        document.getElementById('new-name').addEventListener('keydown', e => {
-            if (e.key === 'Enter') document.getElementById('new-path').focus();
+        function hideDeleteModal() {
+            document.getElementById('delete-modal').classList.remove('active');
+            deleteTarget = null;
+        }
+
+        async function confirmDelete() {
+            if (!deleteTarget) return;
+            const name = deleteTarget;
+            hideDeleteModal();
+
+            try {
+                const res = await authFetch(`/api/sessions/${encodeURIComponent(name)}`, {
+                    method: 'DELETE',
+                });
+                const data = await res.json();
+
+                if (res.ok) {
+                    showToast('Session deleted', 'success');
+                    refreshSessions();
+                } else {
+                    showToast(data.error || 'Failed to delete', 'error');
+                }
+            } catch (e) {
+                showToast('Server connection failed', 'error');
+            }
+        }
+
+        // Modal controls
+        function showCreateModal() {
+            document.getElementById('create-modal').classList.add('active');
+            document.getElementById('session-name').value = '';
+            document.getElementById('session-name').focus();
+        }
+
+        function hideCreateModal() {
+            document.getElementById('create-modal').classList.remove('active');
+        }
+
+        // Close modals on overlay click
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('modal-overlay')) {
+                e.target.classList.remove('active');
+                deleteTarget = null;
+            }
         });
-        document.getElementById('new-path').addEventListener('keydown', e => {
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal-overlay.active').forEach(m => m.classList.remove('active'));
+                deleteTarget = null;
+            }
+        });
+
+        document.getElementById('session-name').addEventListener('keypress', (e) => {
             if (e.key === 'Enter') createSession();
         });
 
-        fetchHealth();
-        fetchSessions();
+        document.getElementById('working-dir').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') createSession();
+        });
 
-        // Auto refresh every 10s
-        setInterval(fetchSessions, 10000);
+        // Toast
+        function showToast(message, type = 'info') {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.className = 'toast show ' + type;
+            setTimeout(() => {
+                toast.className = 'toast';
+            }, 3000);
+        }
+
+        // Escape utilities
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        }
     </script>
 </body>
 </html>

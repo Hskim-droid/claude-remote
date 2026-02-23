@@ -3,175 +3,893 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0f0f17">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#0f0f1a">
     <title>Terminal</title>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.min.css">
+
+    <!-- XTerm.js 6.0 + addons (SRI-verified) -->
+    <link rel="stylesheet"
+          href="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/css/xterm.min.css"
+          integrity="sha384-eDYu/eBZQNhtqTaA7Wl3XighXKxm/9VYF+Chh3hQS+UUlKQIJ14hK2imKu4n99aR"
+          crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@6.0.0/lib/xterm.min.js"
+            integrity="sha384-pELe6ZHtFxFcuYBq3gMkqvmnNIqUWnAYjBG5gThqQQCjWp8PJ/65MLK4lMIfEK1e"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"
+            integrity="sha384-XGqKrV8Jrukp1NITJbOEHwg01tNkuXr6uB6YEj69ebpYU3v7FvoGgEg23C1Gcehk"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"
+            integrity="sha384-S1biLeI8L/bFduIVvCxbn/l4EtaG4nTqQjGF7qCYTbsGXGFe8KgIKXtw4+UWxprv"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-webgl@0.18.0/lib/addon-webgl.min.js"
+            integrity="sha384-suTk5GfzCaPxAJRzhqzQQvM81UskMll+stLgqXpay997ORTnMRm1IAJi143VfhXU"
+            crossorigin="anonymous"></script>
+
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            height: 100%;
-            width: 100%;
-            background: #0f0f1a;
-            overflow: hidden;
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
         }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #0f0f17;
+        }
+
         #terminal {
             width: 100%;
             height: 100%;
-            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
         }
+
         .xterm {
             height: 100%;
+        }
+
+        /* Reconnect overlay */
+        .reconnect-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(15, 15, 23, 0.9);
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            gap: 16px;
+            z-index: 10;
+        }
+
+        .reconnect-overlay.active {
+            display: flex;
+        }
+
+        .reconnect-overlay p {
+            color: #a1a1aa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.9rem;
+        }
+
+        .reconnect-overlay button {
+            padding: 12px 32px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+
+        .reconnect-overlay button:hover {
+            background: #4f46e5;
+        }
+
+        /* Connecting spinner */
+        .connecting {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            z-index: 5;
+        }
+
+        .connecting .spinner {
+            width: 24px;
+            height: 24px;
+            border: 2px solid rgba(99, 102, 241, 0.3);
+            border-top-color: #6366f1;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+
+        .connecting p {
+            color: #71717a;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.85rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Mobile input bar */
+        .mobile-input-bar {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 8px;
+            padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px));
+            background: #1a1a2e;
+            border-top: 1px solid #333355;
+            z-index: 20;
+            gap: 6px;
+        }
+
+        @media (max-width: 768px), (pointer: coarse) {
+            .mobile-input-bar {
+                display: flex;
+            }
+            #terminal {
+                padding-bottom: calc(52px + env(safe-area-inset-bottom, 0px));
+            }
+        }
+
+        .mobile-input-bar input {
+            flex: 1;
+            padding: 10px 12px;
+            background: #0f0f17;
+            border: 1px solid #333355;
+            border-radius: 8px;
+            color: #e4e4e7;
+            font-family: Menlo, Monaco, 'Courier New', monospace;
+            font-size: 16px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .mobile-input-bar input:focus {
+            border-color: #6366f1;
+        }
+
+        .mobile-input-bar button {
+            padding: 10px 14px;
+            background: #6366f1;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .mobile-input-bar .special-keys {
+            display: flex;
+            gap: 4px;
+        }
+
+        .mobile-input-bar .key-btn {
+            padding: 10px 8px;
+            background: #222238;
+            color: #a1a1aa;
+            border: none;
+            border-radius: 6px;
+            font-family: Menlo, Monaco, monospace;
+            font-size: 0.75rem;
+            cursor: pointer;
+            min-width: 36px;
+            text-align: center;
+        }
+
+        .mobile-input-bar .key-btn:active {
+            background: #6366f1;
+            color: white;
+        }
+
+        /* Session panel toggle */
+        .session-toggle {
+            position: fixed;
+            top: calc(8px + env(safe-area-inset-top, 0px));
+            left: calc(8px + env(safe-area-inset-left, 0px));
+            width: 36px;
+            height: 36px;
+            background: rgba(99, 102, 241, 0.85);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            z-index: 20;
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            transition: opacity 0.2s;
+            opacity: 0.6;
+        }
+
+        .session-toggle:hover,
+        .session-toggle:active {
+            opacity: 1;
+        }
+
+        /* Session panel */
+        .session-panel {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            width: 280px;
+            max-width: 85vw;
+            background: #1a1a2e;
+            border-right: 1px solid #333355;
+            z-index: 30;
+            transform: translateX(-100%);
+            transition: transform 0.25s ease;
+            display: flex;
+            flex-direction: column;
+            padding-top: env(safe-area-inset-top, 0px);
+        }
+
+        .session-panel.open {
+            transform: translateX(0);
+        }
+
+        .session-panel-backdrop {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 25;
+        }
+
+        .session-panel-backdrop.open {
+            display: block;
+        }
+
+        .session-panel-header {
+            padding: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid #333355;
+        }
+
+        .session-panel-header h3 {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f4f4f5;
+        }
+
+        .session-panel-close {
+            background: none;
+            border: none;
+            color: #71717a;
+            cursor: pointer;
             padding: 4px;
+            display: flex;
         }
-        .xterm-viewport::-webkit-scrollbar {
-            width: 6px;
+
+        .session-panel-close:hover {
+            color: #f4f4f5;
         }
-        .xterm-viewport::-webkit-scrollbar-track {
-            background: #0f0f1a;
+
+        .session-panel-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
         }
-        .xterm-viewport::-webkit-scrollbar-thumb {
-            background: #3f3f5a;
-            border-radius: 3px;
+
+        .sp-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.88rem;
+            color: #a1a1aa;
+            transition: background 0.15s;
         }
-        .error {
-            color: #ef4444;
-            padding: 20px;
-            font-family: monospace;
+
+        .sp-item:hover {
+            background: #222238;
+        }
+
+        .sp-item.active {
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            font-weight: 600;
+        }
+
+        .sp-item-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            background: #0f0f17;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .sp-item.active .sp-item-icon {
+            background: rgba(99, 102, 241, 0.2);
+        }
+
+        .sp-empty {
+            text-align: center;
+            color: #52525b;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.82rem;
+            padding: 32px 16px;
+        }
+
+        .sp-home {
+            padding: 12px 16px;
+            border-top: 1px solid #333355;
+        }
+
+        .sp-home a {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px;
+            background: #222238;
+            border-radius: 8px;
+            color: #a1a1aa;
+            text-decoration: none;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-size: 0.82rem;
+            transition: background 0.15s;
+        }
+
+        .sp-home a:hover {
+            background: #2a2a45;
+            color: #f4f4f5;
         }
     </style>
 </head>
 <body>
+    <!-- Session toggle button -->
+    <button class="session-toggle" id="session-toggle" onclick="togglePanel()" title="Sessions">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+    </button>
+
+    <!-- Session panel backdrop -->
+    <div class="session-panel-backdrop" id="panel-backdrop" onclick="closePanel()"></div>
+
+    <!-- Session panel -->
+    <div class="session-panel" id="session-panel">
+        <div class="session-panel-header">
+            <h3>Sessions</h3>
+            <button class="session-panel-close" onclick="closePanel()">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="session-panel-list" id="session-panel-list"></div>
+        <div class="sp-home">
+            <a href="/">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                </svg>
+                Dashboard
+            </a>
+        </div>
+    </div>
+
     <div id="terminal"></div>
 
-    <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
+    <!-- Mobile input bar -->
+    <div class="mobile-input-bar" id="mobile-input-bar">
+        <div class="special-keys">
+            <button class="key-btn" onclick="sendSpecial('\x1b')">Esc</button>
+            <button class="key-btn" onclick="sendSpecial('\t')">Tab</button>
+            <button class="key-btn" onclick="sendSpecial('\x03')">^C</button>
+        </div>
+        <input type="text" id="mobile-input" placeholder="Type here..."
+               autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        <button onclick="sendMobileInput()">Send</button>
+    </div>
+
+    <div class="connecting" id="connecting">
+        <div class="spinner"></div>
+        <p>Connecting...</p>
+    </div>
+
+    <div class="reconnect-overlay" id="reconnect">
+        <p id="reconnect-text">Connection lost</p>
+        <button onclick="reconnect()">Reconnect</button>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="reconnect-overlay" id="auth-modal" style="display:none;z-index:50">
+        <p>Authentication Required</p>
+        <input type="password" id="auth-token-input" placeholder="Enter access token"
+               style="padding:10px 16px;background:#1a1a2e;border:1px solid #333355;border-radius:8px;color:#e4e4e7;font-size:0.9rem;width:280px;max-width:80vw;outline:none;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">
+        <button onclick="submitToken()" style="padding:12px 32px;background:#6366f1;color:white;border:none;border-radius:8px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif">Login</button>
+    </div>
+
     <script>
+        let term = null;
+        let ws = null;
+        let fitAddon = null;
+        let sessionName = null;
+        let authToken = sessionStorage.getItem('auth-token') || '';
+        let reconnectAttempts = 0;
+        let reconnectTimer = null;
+        const MAX_RECONNECT_ATTEMPTS = 10;
+
+        // --- E2E Encryption (AES-256-GCM) ---
+        let e2eCryptoKey = null; // CryptoKey for Web Crypto API
+        const IV_LENGTH = 12;
+        const AUTH_TAG_LENGTH = 16;
+
+        function getE2EKeyFromFragment() {
+            const hash = window.location.hash;
+            if (hash && hash.length > 1) {
+                const keyStr = hash.substring(1);
+                // Store in sessionStorage for reconnection
+                sessionStorage.setItem('e2e-key-' + sessionName, keyStr);
+                // Remove from URL bar to prevent screenshot exposure
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+                return keyStr;
+            }
+            // Fallback: retrieve from sessionStorage (reconnect scenario)
+            return sessionStorage.getItem('e2e-key-' + sessionName);
+        }
+
+        function base64UrlDecode(str) {
+            // base64url → base64
+            let b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            const binary = atob(b64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return bytes;
+        }
+
+        async function initE2EKey() {
+            const keyStr = getE2EKeyFromFragment();
+            if (!keyStr) return false;
+
+            try {
+                const rawKey = base64UrlDecode(keyStr);
+                if (rawKey.length !== 32) return false;
+
+                e2eCryptoKey = await crypto.subtle.importKey(
+                    'raw', rawKey, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']
+                );
+                return true;
+            } catch (e) {
+                console.error('E2E key import failed:', e);
+                return false;
+            }
+        }
+
+        async function e2eEncrypt(plaintext) {
+            const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+            const encoded = new TextEncoder().encode(plaintext);
+            const ciphertext = await crypto.subtle.encrypt(
+                { name: 'AES-GCM', iv, tagLength: AUTH_TAG_LENGTH * 8 },
+                e2eCryptoKey, encoded
+            );
+            // Wire format: [12B IV][ciphertext + 16B auth tag]
+            const result = new Uint8Array(IV_LENGTH + ciphertext.byteLength);
+            result.set(iv, 0);
+            result.set(new Uint8Array(ciphertext), IV_LENGTH);
+            return result.buffer;
+        }
+
+        async function e2eDecrypt(data) {
+            const buf = new Uint8Array(data);
+            if (buf.length < IV_LENGTH + AUTH_TAG_LENGTH) {
+                throw new Error('Encrypted data too short');
+            }
+            const iv = buf.slice(0, IV_LENGTH);
+            const ciphertext = buf.slice(IV_LENGTH);
+            const decrypted = await crypto.subtle.decrypt(
+                { name: 'AES-GCM', iv, tagLength: AUTH_TAG_LENGTH * 8 },
+                e2eCryptoKey, ciphertext
+            );
+            return new TextDecoder().decode(decrypted);
+        }
+
+        function authHeaders() {
+            const h = {};
+            if (authToken) h['Authorization'] = 'Bearer ' + authToken;
+            return h;
+        }
+
+        function authFetch(url, opts = {}) {
+            opts.headers = { ...authHeaders(), ...(opts.headers || {}) };
+            return fetch(url, opts);
+        }
+
+        async function checkAuth() {
+            try {
+                const res = await fetch('/api/auth-status');
+                const data = await res.json();
+                if (!data.authRequired) return true;
+
+                if (authToken) {
+                    const verify = await authFetch('/api/status');
+                    if (verify.ok) return true;
+                    sessionStorage.removeItem('auth-token');
+                    authToken = '';
+                }
+
+                document.getElementById('connecting').classList.add('hidden');
+                document.getElementById('auth-modal').style.display = 'flex';
+                document.getElementById('auth-token-input').focus();
+                return false;
+            } catch {
+                return true;
+            }
+        }
+
+        async function submitToken() {
+            const input = document.getElementById('auth-token-input');
+            const token = input.value.trim();
+            if (!token) return;
+
+            authToken = token;
+            const res = await authFetch('/api/status');
+            if (res.ok) {
+                sessionStorage.setItem('auth-token', token);
+                document.getElementById('auth-modal').style.display = 'none';
+                document.getElementById('connecting').classList.remove('hidden');
+                connectTerminal();
+            } else {
+                authToken = '';
+                input.value = '';
+                input.focus();
+            }
+        }
+
+        // Get session from URL params
         const params = new URLSearchParams(window.location.search);
-        const port = params.get('port') || 7681;
-        const name = params.get('name') || 'terminal';
+        sessionName = params.get('session');
 
-        document.title = name + ' - Terminal';
+        if (!sessionName) {
+            document.getElementById('connecting').innerHTML = '<p style="color: #ef4444;">No session specified</p>';
+        }
 
-        const term = new Terminal({
-            cursorBlink: true,
-            fontSize: 14,
-            fontFamily: 'Menlo, Monaco, "Courier New", monospace',
-            theme: {
-                background: '#0f0f1a',
-                foreground: '#e4e4e7',
-                cursor: '#6366f1',
-                cursorAccent: '#0f0f1a',
-                selection: 'rgba(99, 102, 241, 0.3)',
-                black: '#1a1a2e',
-                red: '#ef4444',
-                green: '#22c55e',
-                yellow: '#eab308',
-                blue: '#3b82f6',
-                magenta: '#a855f7',
-                cyan: '#06b6d4',
-                white: '#e4e4e7',
-                brightBlack: '#3f3f5a',
-                brightRed: '#f87171',
-                brightGreen: '#4ade80',
-                brightYellow: '#facc15',
-                brightBlue: '#60a5fa',
-                brightMagenta: '#c084fc',
-                brightCyan: '#22d3ee',
-                brightWhite: '#fafafa',
-            },
+        // Initialize
+        document.addEventListener('DOMContentLoaded', async () => {
+            if (!sessionName) return;
+
+            document.getElementById('auth-token-input').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') submitToken();
+            });
+
+            // Initialize E2E encryption key from URL fragment or sessionStorage
+            await initE2EKey();
+
+            initTerminal();
+            if (await checkAuth()) connectTerminal();
         });
 
-        const fitAddon = new FitAddon.FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(document.getElementById('terminal'));
-        fitAddon.fit();
+        function initTerminal() {
+            term = new Terminal({
+                cursorBlink: true,
+                fontSize: 14,
+                fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+                scrollback: 5000,
+                theme: {
+                    background: '#0f0f17',
+                    foreground: '#e4e4e7',
+                    cursor: '#6366f1',
+                    selection: 'rgba(99, 102, 241, 0.3)',
+                    black: '#1a1a2e',
+                    red: '#ef4444',
+                    green: '#22c55e',
+                    yellow: '#f59e0b',
+                    blue: '#3b82f6',
+                    magenta: '#a855f7',
+                    cyan: '#06b6d4',
+                    white: '#e4e4e7',
+                    brightBlack: '#52525b',
+                    brightRed: '#f87171',
+                    brightGreen: '#4ade80',
+                    brightYellow: '#fbbf24',
+                    brightBlue: '#60a5fa',
+                    brightMagenta: '#c084fc',
+                    brightCyan: '#22d3ee',
+                    brightWhite: '#f4f4f5',
+                },
+            });
 
-        // Connect to ttyd
-        const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${protocol}//${location.hostname}:${port}/ws`;
+            fitAddon = new FitAddon.FitAddon();
+            const webLinksAddon = new WebLinksAddon.WebLinksAddon();
 
-        let socket;
-        let reconnectAttempts = 0;
+            term.loadAddon(fitAddon);
+            term.loadAddon(webLinksAddon);
 
-        function connect() {
-            socket = new WebSocket(wsUrl);
-            socket.binaryType = 'arraybuffer';
+            term.open(document.getElementById('terminal'));
 
-            socket.onopen = () => {
-                console.log('Connected');
+            // GPU-accelerated rendering (WebGL)
+            try {
+                const webglAddon = new WebglAddon.WebglAddon();
+                webglAddon.onContextLoss(() => {
+                    webglAddon.dispose();
+                });
+                term.loadAddon(webglAddon);
+            } catch (e) {
+                console.warn('WebGL addon not available, using canvas renderer');
+            }
+
+            fitAddon.fit();
+
+            // Handle resize
+            window.addEventListener('resize', () => {
+                if (fitAddon && term) {
+                    fitAddon.fit();
+                }
+            });
+
+            // Focus terminal on touch (mobile keyboard)
+            document.getElementById('terminal').addEventListener('touchstart', (e) => {
+                if (e.target.closest('.session-panel') || e.target.closest('.session-toggle') || e.target.closest('.keyboard-btn')) return;
+                if (term) term.focus();
+            });
+
+            // Set page title
+            document.title = `${sessionName} - Terminal`;
+        }
+
+        async function sendWsMessage(msg) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            const json = JSON.stringify(msg);
+            if (e2eCryptoKey) {
+                ws.send(await e2eEncrypt(json));
+            } else {
+                ws.send(json);
+            }
+        }
+
+        function connectTerminal() {
+            if (ws) {
+                ws.close();
+            }
+
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            let wsUrl = `${protocol}//${location.host}/ws?session=${encodeURIComponent(sessionName)}`;
+            if (authToken) wsUrl += `&token=${encodeURIComponent(authToken)}`;
+
+            ws = new WebSocket(wsUrl);
+            if (e2eCryptoKey) {
+                ws.binaryType = 'arraybuffer';
+            }
+
+            ws.onopen = () => {
+                document.getElementById('connecting').classList.add('hidden');
+                document.getElementById('reconnect').classList.remove('active');
                 reconnectAttempts = 0;
-                // Send initial resize
-                sendResize(term.cols, term.rows);
+                if (reconnectTimer) {
+                    clearTimeout(reconnectTimer);
+                    reconnectTimer = null;
+                }
+
+                // Send initial terminal size
+                const dims = fitAddon.proposeDimensions();
+                if (dims) {
+                    sendWsMessage({ type: 'resize', cols: dims.cols, rows: dims.rows });
+                }
+
+                fitAddon.fit();
+                term.focus();
             };
 
-            socket.onmessage = (event) => {
-                if (event.data instanceof ArrayBuffer) {
-                    const data = new Uint8Array(event.data);
-                    if (data[0] === 0) {
-                        term.write(data.slice(1));
-                    } else if (data[0] === 1) {
-                        // title update - ignore or use
+            // PTY output → terminal
+            ws.onmessage = async (event) => {
+                if (e2eCryptoKey) {
+                    try {
+                        const data = event.data instanceof ArrayBuffer
+                            ? event.data
+                            : await event.data.arrayBuffer();
+                        const decrypted = await e2eDecrypt(data);
+                        const msg = JSON.parse(decrypted);
+                        if (msg.type === 'output' && typeof msg.data === 'string') {
+                            term.write(msg.data);
+                        }
+                    } catch (e) {
+                        console.error('E2E decrypt failed:', e);
                     }
                 } else {
                     term.write(event.data);
                 }
             };
 
-            socket.onerror = (e) => {
-                console.error('WebSocket error:', e);
+            ws.onclose = (event) => {
+                // Auth rejected
+                if (event.code === 1006 && !event.wasClean) {
+                    scheduleReconnect();
+                    return;
+                }
+                scheduleReconnect();
             };
 
-            socket.onclose = () => {
-                console.log('Disconnected');
-                if (reconnectAttempts < 5) {
-                    reconnectAttempts++;
-                    term.write('\r\n\x1b[33mReconnecting...\x1b[0m\r\n');
-                    setTimeout(connect, 1000 * reconnectAttempts);
-                } else {
-                    term.write('\r\n\x1b[31mConnection lost. Refresh to retry.\x1b[0m\r\n');
-                }
+            ws.onerror = () => {
+                // onclose will fire after this
             };
+
+            // Terminal input → PTY
+            term.onData((data) => {
+                sendWsMessage({ type: 'input', data });
+            });
+
+            // Terminal resize → PTY
+            term.onResize(({ cols, rows }) => {
+                sendWsMessage({ type: 'resize', cols, rows });
+            });
         }
 
-        function sendInput(data) {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                const payload = new Uint8Array(data.length + 1);
-                payload[0] = 0;
-                for (let i = 0; i < data.length; i++) {
-                    payload[i + 1] = data.charCodeAt(i);
+        function scheduleReconnect() {
+            if (reconnectAttempts >= MAX_RECONNECT_ATTEMPTS) {
+                document.getElementById('reconnect').classList.add('active');
+                document.getElementById('reconnect-text').textContent = 'Connection lost (max retries reached)';
+                return;
+            }
+
+            reconnectAttempts++;
+            const delay = Math.min(1000 * Math.pow(2, reconnectAttempts - 1), 16000);
+            const delaySec = Math.round(delay / 1000);
+
+            document.getElementById('reconnect').classList.add('active');
+            document.getElementById('reconnect-text').textContent =
+                `Reconnecting in ${delaySec}s... (${reconnectAttempts}/${MAX_RECONNECT_ATTEMPTS})`;
+
+            reconnectTimer = setTimeout(() => {
+                document.getElementById('reconnect').classList.remove('active');
+                document.getElementById('connecting').classList.remove('hidden');
+                document.getElementById('connecting').innerHTML =
+                    '<div class="spinner"></div><p>Reconnecting...</p>';
+                connectTerminal();
+            }, delay);
+        }
+
+        function reconnect() {
+            reconnectAttempts = 0;
+            if (reconnectTimer) {
+                clearTimeout(reconnectTimer);
+                reconnectTimer = null;
+            }
+            document.getElementById('reconnect').classList.remove('active');
+            document.getElementById('connecting').classList.remove('hidden');
+            document.getElementById('connecting').innerHTML = '<div class="spinner"></div><p>Reconnecting...</p>';
+            connectTerminal();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // --- Mobile input ---
+        function sendMobileInput() {
+            const input = document.getElementById('mobile-input');
+            const text = input.value;
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            if (text) {
+                sendWsMessage({ type: 'input', data: text });
+            }
+            // Send Enter
+            sendWsMessage({ type: 'input', data: '\r' });
+            input.value = '';
+            input.focus();
+        }
+
+        function sendSpecial(char) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
+            sendWsMessage({ type: 'input', data: char });
+        }
+
+        // Enter key in mobile input
+        document.addEventListener('DOMContentLoaded', () => {
+            const input = document.getElementById('mobile-input');
+            if (input) {
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        sendMobileInput();
+                    }
+                });
+            }
+        });
+
+        // --- Session panel ---
+        let panelOpen = false;
+
+        function togglePanel() {
+            panelOpen ? closePanel() : openPanel();
+        }
+
+        function openPanel() {
+            panelOpen = true;
+            document.getElementById('session-panel').classList.add('open');
+            document.getElementById('panel-backdrop').classList.add('open');
+            loadSessions();
+        }
+
+        function closePanel() {
+            panelOpen = false;
+            document.getElementById('session-panel').classList.remove('open');
+            document.getElementById('panel-backdrop').classList.remove('open');
+            if (term) term.focus();
+        }
+
+        async function loadSessions() {
+            const list = document.getElementById('session-panel-list');
+            try {
+                const res = await authFetch('/api/processes');
+                const data = await res.json();
+                const processes = data.processes || [];
+
+                if (processes.length === 0) {
+                    list.innerHTML = '<div class="sp-empty">No Claude processes running</div>';
+                    return;
                 }
-                socket.send(payload);
+
+                list.innerHTML = processes.map(p => {
+                    const isActive = p.type === 'tmux' && p.name === sessionName;
+                    const isTmux = p.type === 'tmux';
+                    const color = isActive ? '#818cf8' : (isTmux ? '#71717a' : '#4ade80');
+                    return `<div class="sp-item ${isActive ? 'active' : ''}" ${isTmux ? `onclick="switchSession('${escapeHtml(p.name)}')"` : ''} style="${isTmux ? 'cursor:pointer' : 'cursor:default'}">
+                        <div class="sp-item-icon">
+                            ${isTmux
+                                ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>`
+                                : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>`
+                            }
+                        </div>
+                        <span>${escapeHtml(p.name)}</span>
+                        <span style="margin-left:auto;font-size:0.7rem;color:${isTmux ? '#818cf8' : '#4ade80'};opacity:0.7">${isTmux ? 'tmux' : 'local'}</span>
+                    </div>`;
+                }).join('');
+            } catch (e) {
+                list.innerHTML = '<div class="sp-empty">Failed to load</div>';
             }
         }
 
-        function sendResize(cols, rows) {
-            if (socket && socket.readyState === WebSocket.OPEN) {
-                const msg = JSON.stringify({ columns: cols, rows: rows });
-                const payload = new Uint8Array(msg.length + 1);
-                payload[0] = 1;
-                for (let i = 0; i < msg.length; i++) {
-                    payload[i + 1] = msg.charCodeAt(i);
-                }
-                socket.send(payload);
+        function switchSession(name) {
+            if (name === sessionName) {
+                closePanel();
+                return;
             }
+            window.location.href = `/terminal?session=${encodeURIComponent(name)}`;
         }
-
-        // Terminal input
-        term.onData(sendInput);
-
-        // Terminal resize
-        term.onResize(({ cols, rows }) => sendResize(cols, rows));
-
-        // Window resize
-        window.addEventListener('resize', () => fitAddon.fit());
-
-        // Start connection
-        connect();
-
-        // Focus terminal
-        term.focus();
     </script>
 </body>
 </html>
