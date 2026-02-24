@@ -19,3 +19,12 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Runtime data
+data/
+
+# Claude Code IDE
+.claude/
+
+# Windows artifacts
+nul
