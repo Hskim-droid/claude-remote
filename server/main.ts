@@ -33,6 +33,7 @@ app.use(helmet({
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
+      scriptSrcAttr: ["'unsafe-inline'"],
       styleSrc: ["'self'", "'unsafe-inline'", 'cdn.jsdelivr.net'],
       connectSrc: ["'self'", 'ws:', 'wss:'],
       imgSrc: ["'self'", 'data:'],
