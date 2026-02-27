@@ -3,9 +3,13 @@ services:
     build: .
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
-      - HOST=0.0.0.0
-      - PORT=8080
+      - NODE_ENV=production
     volumes:
-      - /home:/home:ro
+      # Claude CLI auth credentials (mount from WSL2 home)
+      - ~/.claude:/root/.claude
+      # Workspace directories
+      - /home:/home
     restart: unless-stopped

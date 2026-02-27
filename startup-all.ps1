@@ -1,10 +1,9 @@
-# Claude Code Remote - Startup Script
-# Starts claude-remote server in background (no visible windows)
+# Claude Code Remote - Startup Script (PM2)
+# Restores PM2 saved processes on boot
 
 $ErrorActionPreference = "Continue"
 
 $LOG_FILE = "$env:TEMP\claude-startup.log"
-$CLAUDE_REMOTE_DIR = "D:\tools\claude-remote"
 
 function Write-Log {
     param([string]$Message, [string]$Color = "White")
@@ -14,12 +13,11 @@ function Write-Log {
     Add-Content -Path $LOG_FILE -Value $line
 }
 
-# Init log
 "" | Set-Content -Path $LOG_FILE
 Write-Log "=== Claude Code Remote Startup ===" "Cyan"
 
 # --- 1. WSL Check ---
-Write-Log "[1/3] Checking WSL..." "Yellow"
+Write-Log "[1/2] Checking WSL..." "Yellow"
 $wslStatus = wsl --list --running 2>$null
 if ($LASTEXITCODE -ne 0) {
     Write-Log "Starting WSL Ubuntu..." "Yellow"
@@ -27,29 +25,10 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-Log "WSL Ubuntu OK" "Green"
 
-# --- 2. Kill existing processes ---
-Write-Log "[2/3] Cleaning up old processes..." "Yellow"
-
-$nodeProcs = Get-Process node -ErrorAction SilentlyContinue | Where-Object {
-    try { $_.CommandLine -like "*claude-remote*" } catch { $false }
-}
-if ($nodeProcs) {
-    $nodeProcs | Stop-Process -Force -ErrorAction SilentlyContinue
-    Write-Log "Killed old node process" "Yellow"
-}
-
-Write-Log "Cleanup done" "Green"
-
-# --- 3. Start claude-remote (Node.js, port 8080) ---
-Write-Log "[3/3] Starting claude-remote (port 8080)..." "Yellow"
-
-if (Test-Path "$CLAUDE_REMOTE_DIR\server\main.js") {
-    Start-Process powershell -ArgumentList "-WindowStyle Hidden -Command `"cd '$CLAUDE_REMOTE_DIR'; node server/main.js`"" -WindowStyle Hidden
-    Write-Log "claude-remote started (Hidden)" "Green"
-} else {
-    Write-Log "ERROR: $CLAUDE_REMOTE_DIR\server\main.js not found!" "Red"
-    exit 1
-}
+# --- 2. PM2 resurrect ---
+Write-Log "[2/2] Starting PM2 processes..." "Yellow"
+pm2 resurrect 2>$null
+Write-Log "PM2 resurrect done" "Green"
 
 # --- Verify ---
 Start-Sleep -Seconds 3
@@ -66,4 +45,5 @@ try {
 Write-Log "" "White"
 Write-Log "=== Started ===" "Cyan"
 Write-Log "  http://localhost:8080" "White"
-Write-Log "  Log: $LOG_FILE" "Gray"
+Write-Log "  PM2 status: pm2 status" "Gray"
+Write-Log "  PM2 logs:   pm2 logs claude-remote" "Gray"

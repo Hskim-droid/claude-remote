@@ -8,10 +8,13 @@ RUN apt-get update && \
       g++ \
     && rm -rf /var/lib/apt/lists/*
 
+# Install Claude Code CLI globally
+RUN npm install -g @anthropic-ai/claude-code
+
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci --omit=dev
 
 COPY . .
 
