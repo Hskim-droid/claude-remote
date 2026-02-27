@@ -176,6 +176,66 @@ Copy `.env.example` to `.env` and customize:
    ```
 3. Access from anywhere via your Tailscale hostname
 
+### SSH Access (Termius / any SSH client)
+
+Connect directly via SSH for the most stable remote experience — no browser or WebSocket needed.
+
+#### Prerequisites
+
+- **OpenSSH Server** enabled on Windows (`sshd` service running)
+- **Tailscale** or LAN access to the host machine
+
+#### Setup
+
+1. Install the session manager script into WSL:
+   ```bash
+   # From the project directory
+   cp claude-manager.sh \\\\wsl.localhost\\Ubuntu\\home\\$USER\\claude-manager
+   wsl -d Ubuntu -- chmod +x ~/claude-manager
+   ```
+
+2. (Optional) Auto-launch on SSH login — add to WSL `~/.bashrc`:
+   ```bash
+   if [ -n "$SSH_CONNECTION" ] && [ -z "$TMUX" ] && [ -x "$HOME/claude-manager" ]; then
+       exec "$HOME/claude-manager"
+   fi
+   ```
+
+#### Connect with Termius
+
+| Field | Value |
+|-------|-------|
+| Host | Tailscale IP or LAN IP |
+| Port | `22` |
+| Username | Windows username |
+| Auth | Windows password or SSH key |
+
+On connect, the Claude Session Manager launches automatically:
+
+```
+╔══════════════════════════════════════╗
+║   Claude Code Session Manager        ║
+╚══════════════════════════════════════╝
+
+  Active Sessions:
+
+  [1] session-1  (1 window)  ○ detached
+  [2] project-x  (1 window)  ○ detached
+
+  [n] New session
+  [q] Quit
+
+  Select:
+```
+
+#### tmux Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `Ctrl+B` → `D` | Detach (return to manager, session stays alive) |
+| `Ctrl+B` → `S` | Switch between sessions |
+| `Ctrl+B` → `C` | New window in current session |
+
 ### Project Structure
 
 ```
@@ -408,6 +468,66 @@ docker compose up -d
    tailscale serve --bg 8080
    ```
 3. Tailscale 호스트명으로 어디서든 접속
+
+### SSH 접속 (Termius / SSH 클라이언트)
+
+SSH로 직접 접속하면 브라우저나 WebSocket 없이 가장 안정적으로 사용할 수 있습니다.
+
+#### 사전 요구사항
+
+- Windows **OpenSSH 서버** 활성화 (`sshd` 서비스 실행 중)
+- **Tailscale** 또는 LAN 접근 가능
+
+#### 설정
+
+1. 세션 관리자 스크립트를 WSL에 설치:
+   ```bash
+   # 프로젝트 디렉토리에서
+   cp claude-manager.sh \\\\wsl.localhost\\Ubuntu\\home\\$USER\\claude-manager
+   wsl -d Ubuntu -- chmod +x ~/claude-manager
+   ```
+
+2. (선택) SSH 접속 시 자동 실행 — WSL `~/.bashrc`에 추가:
+   ```bash
+   if [ -n "$SSH_CONNECTION" ] && [ -z "$TMUX" ] && [ -x "$HOME/claude-manager" ]; then
+       exec "$HOME/claude-manager"
+   fi
+   ```
+
+#### Termius 연결 설정
+
+| 항목 | 값 |
+|------|-----|
+| Host | Tailscale IP 또는 LAN IP |
+| Port | `22` |
+| Username | Windows 사용자명 |
+| Auth | Windows 비밀번호 또는 SSH 키 |
+
+접속하면 Claude Session Manager가 자동 실행됩니다:
+
+```
+╔══════════════════════════════════════╗
+║   Claude Code Session Manager        ║
+╚══════════════════════════════════════╝
+
+  Active Sessions:
+
+  [1] session-1  (1 window)  ○ detached
+  [2] project-x  (1 window)  ○ detached
+
+  [n] New session
+  [q] Quit
+
+  Select:
+```
+
+#### tmux 단축키
+
+| 키 | 동작 |
+|----|------|
+| `Ctrl+B` → `D` | 세션 분리 (매니저로 돌아감, 세션은 유지) |
+| `Ctrl+B` → `S` | 세션 간 전환 |
+| `Ctrl+B` → `C` | 현재 세션에 새 윈도우 생성 |
 
 ### 프로젝트 구조
 

@@ -23,7 +23,17 @@ import { base64UrlToKey, encrypt, decrypt } from './crypto.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const app = express();
+app.set('trust proxy', 1);
 const server = http.createServer(app);
+
+// Debug: log all HTTP requests including WebSocket upgrades
+server.on('upgrade', (req) => {
+  console.log(`[HTTP] Upgrade request: ${req.url} | upgrade=${req.headers.upgrade}`);
+});
+app.use((req, _res, next) => {
+  console.log(`[HTTP] ${req.method} ${req.url} from ${req.ip}`);
+  next();
+});
 
 // --- Security middleware ---
 
@@ -93,7 +103,11 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 const wss = new WebSocketServer({
   server,
   path: '/ws',
-  verifyClient: wsVerifyClient,
+  verifyClient: (info, cb) => {
+    const result = wsVerifyClient(info);
+    console.log(`[WS] verifyClient: ${info.req.url} → ${result ? 'OK' : 'REJECTED'}`);
+    cb(result);
+  },
 });
 
 // --- WebSocket ping/pong for dead connection detection ---
@@ -117,6 +131,7 @@ wss.on('close', () => {
 });
 
 wss.on('connection', async (ws: WebSocket, req) => {
+  console.log(`[WS] Connected: ${req.url} from ${req.headers['x-forwarded-for'] || req.socket.remoteAddress}`);
   // Mark connection as alive for ping/pong
   const extWs = ws as WebSocket & { isAlive?: boolean };
   extWs.isAlive = true;
@@ -157,7 +172,9 @@ wss.on('connection', async (ws: WebSocket, req) => {
   let ptySession;
   try {
     ptySession = attachSession(safeName);
+    console.log(`[WS] PTY attached: ${safeName}`);
   } catch (err) {
+    console.error(`[WS] PTY attach failed: ${safeName}`, (err as Error).message);
     ws.close(4500, 'Failed to attach PTY');
     return;
   }
