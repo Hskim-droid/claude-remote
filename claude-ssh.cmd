@@ -1,2 +1,2 @@
 @echo off
-wsl -d Ubuntu -- /home/ser/claude-manager
+wsl -d Ubuntu -- bash -lc claude-manager
